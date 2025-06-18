@@ -35,6 +35,7 @@ set(LUMEN_SOURCES
     src/lumen_c_api.cpp
     src/types.cpp
     src/memory/allocator.cpp
+    src/storage/page.cpp
 )
 
 # Public headers
@@ -42,6 +43,7 @@ set(LUMEN_PUBLIC_HEADERS
     include/lumen/lumen.h
     include/lumen/types.h
     include/lumen/memory/allocator.h
+    include/lumen/storage/page.h
 )
 
 # Include directories
