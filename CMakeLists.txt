@@ -33,11 +33,13 @@ include(Dependencies)
 # Source files (starting with minimal C API)
 set(LUMEN_SOURCES
     src/lumen_c_api.cpp
+    src/types.cpp
 )
 
 # Public headers
 set(LUMEN_PUBLIC_HEADERS
     include/lumen/lumen.h
+    include/lumen/types.h
 )
 
 # Include directories

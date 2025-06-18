@@ -50,9 +50,9 @@ dist/
 *.log
 
 # Development files (never commit)
-CLAUDE.md
-STATUS.md
-ROADMAP.md
-plan/
-types/
-memory/
+/CLAUDE.md
+/STATUS.md
+/ROADMAP.md
+/plan/
+/types/
+/memory/
