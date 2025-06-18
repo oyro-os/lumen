@@ -58,14 +58,14 @@ help:
 build: clean
 	@echo "$(GREEN)Building Lumen (Debug)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
 	@echo "$(GREEN)Build complete!$(NC)"
 
 release: clean
 	@echo "$(GREEN)Building Lumen (Release)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
 	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
 	@echo "$(GREEN)Release build complete! Check dist/ directory$(NC)"
 
@@ -81,7 +81,7 @@ test-verbose: build
 coverage: clean
 	@echo "$(GREEN)Building with coverage...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DCOVERAGE=ON
+	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DCOVERAGE=ON
 	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
 	@cd $(BUILD_DIR) && $(MAKE) coverage
 	@echo "$(GREEN)Coverage report: $(BUILD_DIR)/coverage/index.html$(NC)"
@@ -145,7 +145,7 @@ android: clean
 linux: clean
 	@echo "$(GREEN)Building for Linux...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && CC=clang CXX=clang++ $(CMAKE) .. \
+	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. \
 		-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
 	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
 	@echo "$(GREEN)Linux build complete!$(NC)"
@@ -187,7 +187,7 @@ format:
 lint:
 	@echo "$(GREEN)Running clang-tidy...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug
+	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug
 	@find src -name "*.cpp" | xargs clang-tidy -p $(BUILD_DIR)
 
 check: format lint test
