@@ -9,9 +9,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wno-unused-parameter
         -Wno-unused-variable
         -Wno-sign-compare
-        -Wno-nan-infinity-disabled
         -fstrict-aliasing
     )
+    
+    # Check if the compiler supports -Wno-nan-infinity-disabled
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag(-Wno-nan-infinity-disabled HAS_NO_NAN_INFINITY_DISABLED)
+    if(HAS_NO_NAN_INFINITY_DISABLED)
+        add_compile_options(-Wno-nan-infinity-disabled)
+    endif()
     
     # Debug flags
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -DDEBUG -DLUMEN_DEBUG")
