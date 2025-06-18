@@ -23,9 +23,15 @@ using TransactionID = uint64_t;
 struct Timestamp {
     int64_t value;
     explicit Timestamp(int64_t v = 0) : value(v) {}
-    operator int64_t() const { return value; }
-    bool operator==(const Timestamp& other) const { return value == other.value; }
-    bool operator<(const Timestamp& other) const { return value < other.value; }
+    operator int64_t() const {
+        return value;
+    }
+    bool operator==(const Timestamp& other) const {
+        return value == other.value;
+    }
+    bool operator<(const Timestamp& other) const {
+        return value < other.value;
+    }
 };
 
 // Constants
@@ -89,8 +95,12 @@ class Value {
     explicit Value(const Timestamp& v) : data_(v) {}
 
     // Type checking
-    bool isNull() const { return std::holds_alternative<std::monostate>(data_); }
-    bool isBool() const { return std::holds_alternative<bool>(data_); }
+    bool isNull() const {
+        return std::holds_alternative<std::monostate>(data_);
+    }
+    bool isBool() const {
+        return std::holds_alternative<bool>(data_);
+    }
     bool isInt() const {
         return std::holds_alternative<int8_t>(data_) || std::holds_alternative<int16_t>(data_) ||
                std::holds_alternative<int32_t>(data_) || std::holds_alternative<int64_t>(data_);
@@ -102,10 +112,18 @@ class Value {
     bool isFloat() const {
         return std::holds_alternative<float>(data_) || std::holds_alternative<double>(data_);
     }
-    bool isString() const { return std::holds_alternative<std::string>(data_); }
-    bool isBlob() const { return std::holds_alternative<std::vector<byte>>(data_); }
-    bool isVector() const { return std::holds_alternative<std::vector<float>>(data_); }
-    bool isTimestamp() const { return std::holds_alternative<Timestamp>(data_); }
+    bool isString() const {
+        return std::holds_alternative<std::string>(data_);
+    }
+    bool isBlob() const {
+        return std::holds_alternative<std::vector<byte>>(data_);
+    }
+    bool isVector() const {
+        return std::holds_alternative<std::vector<float>>(data_);
+    }
+    bool isTimestamp() const {
+        return std::holds_alternative<Timestamp>(data_);
+    }
 
     // Get data type
     DataType type() const;
@@ -133,12 +151,22 @@ class Value {
     static Value deserialize(const byte* buffer, size_t& offset);
 
     // Comparison operators
-    bool operator==(const Value& other) const { return data_ == other.data_; }
-    bool operator!=(const Value& other) const { return data_ != other.data_; }
+    bool operator==(const Value& other) const {
+        return data_ == other.data_;
+    }
+    bool operator!=(const Value& other) const {
+        return data_ != other.data_;
+    }
     bool operator<(const Value& other) const;
-    bool operator<=(const Value& other) const { return *this < other || *this == other; }
-    bool operator>(const Value& other) const { return other < *this; }
-    bool operator>=(const Value& other) const { return other <= *this; }
+    bool operator<=(const Value& other) const {
+        return *this < other || *this == other;
+    }
+    bool operator>(const Value& other) const {
+        return other < *this;
+    }
+    bool operator>=(const Value& other) const {
+        return other <= *this;
+    }
 
     // String representation for debugging
     std::string toString() const;
@@ -154,22 +182,46 @@ class Row {
     explicit Row(std::vector<Value> values) : values_(std::move(values)) {}
 
     // Access
-    size_t size() const { return values_.size(); }
-    bool empty() const { return values_.empty(); }
-    const Value& operator[](size_t index) const { return values_[index]; }
-    Value& operator[](size_t index) { return values_[index]; }
+    size_t size() const {
+        return values_.size();
+    }
+    bool empty() const {
+        return values_.empty();
+    }
+    const Value& operator[](size_t index) const {
+        return values_[index];
+    }
+    Value& operator[](size_t index) {
+        return values_[index];
+    }
 
     // Modification
-    void append(const Value& value) { values_.push_back(value); }
-    void append(Value&& value) { values_.push_back(std::move(value)); }
-    void clear() { values_.clear(); }
-    void resize(size_t size) { values_.resize(size); }
+    void append(const Value& value) {
+        values_.push_back(value);
+    }
+    void append(Value&& value) {
+        values_.push_back(std::move(value));
+    }
+    void clear() {
+        values_.clear();
+    }
+    void resize(size_t size) {
+        values_.resize(size);
+    }
 
     // Iterators
-    auto begin() { return values_.begin(); }
-    auto end() { return values_.end(); }
-    auto begin() const { return values_.begin(); }
-    auto end() const { return values_.end(); }
+    auto begin() {
+        return values_.begin();
+    }
+    auto end() {
+        return values_.end();
+    }
+    auto begin() const {
+        return values_.begin();
+    }
+    auto end() const {
+        return values_.end();
+    }
 
     // Serialization
     size_t serializedSize() const;
@@ -186,16 +238,15 @@ inline size_t align(size_t value, size_t alignment) {
 }
 
 // Type traits for compile-time type checking
-template <typename T>
+template<typename T>
 struct is_lumen_numeric
-    : std::integral_constant<
-          bool, std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> ||
-                    std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t> ||
-                    std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
-                    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t> ||
-                    std::is_same_v<T, float> || std::is_same_v<T, double>> {};
+    : std::integral_constant<bool, std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> ||
+                                       std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t> ||
+                                       std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
+                                       std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t> ||
+                                       std::is_same_v<T, float> || std::is_same_v<T, double>> {};
 
-template <typename T>
+template<typename T>
 inline constexpr bool is_lumen_numeric_v = is_lumen_numeric<T>::value;
 
 }  // namespace lumen

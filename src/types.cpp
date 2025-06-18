@@ -7,14 +7,14 @@
 namespace lumen {
 
 // Helper to write data to buffer
-template <typename T>
+template<typename T>
 static void writeToBuffer(byte*& buffer, const T& value) {
     std::memcpy(buffer, &value, sizeof(T));
     buffer += sizeof(T);
 }
 
 // Helper to read data from buffer
-template <typename T>
+template<typename T>
 static T readFromBuffer(const byte*& buffer) {
     T value;
     std::memcpy(&value, buffer, sizeof(T));
@@ -337,8 +337,10 @@ Value Value::deserialize(const byte* buffer, size_t& offset) {
 
 bool Value::operator<(const Value& other) const {
     // NULL is less than everything
-    if (isNull()) return !other.isNull();
-    if (other.isNull()) return false;
+    if (isNull())
+        return !other.isNull();
+    if (other.isNull())
+        return false;
 
     // Same type comparison
     if (type() == other.type()) {
