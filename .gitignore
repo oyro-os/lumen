@@ -7,6 +7,7 @@ out/
 third_party/
 
 # IDE
+.claude/
 .vscode/
 .idea/
 *.swp
@@ -47,3 +48,11 @@ dist/
 *.tmp
 *.temp
 *.log
+
+# Development files (never commit)
+CLAUDE.md
+STATUS.md
+ROADMAP.md
+plan/
+types/
+memory/

@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  quick-check:
+    name: Quick CI Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Clang and tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang clang-format clang-tidy libc++-dev libc++abi-dev lcov
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+      
+    - name: Run full CI test
+      run: |
+        make ci-test
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        build_type: [Debug, Release]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.20'
+        
+    - name: Setup Clang (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang libc++-dev libc++abi-dev
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+        
+    - name: Setup Clang (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+        
+    - name: Setup MSVC (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    - name: Build and Test (Unix)
+      if: matrix.os != 'windows-latest' && matrix.build_type == 'Debug'
+      run: |
+        make test
+        
+    - name: Build Release (Unix)
+      if: matrix.os != 'windows-latest' && matrix.build_type == 'Release'
+      run: |
+        make release
+        
+    - name: Build and Test (Windows Debug)
+      if: matrix.os == 'windows-latest' && matrix.build_type == 'Debug'
+      run: |
+        make windows-test
+        
+    - name: Build (Windows Release)
+      if: matrix.os == 'windows-latest' && matrix.build_type == 'Release'
+      run: |
+        make windows-release
+        
+    - name: Generate coverage report
+      if: matrix.build_type == 'Debug' && matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get install -y lcov
+        make coverage || true
+        
+    - name: Upload coverage to Codecov
+      if: matrix.build_type == 'Debug' && matrix.os == 'ubuntu-latest'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./build/coverage.info.cleaned
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        
+    - name: Verify release artifacts
+      if: matrix.build_type == 'Release'
+      run: |
+        echo "=== Dist directory contents ==="
+        find dist -type f 2>/dev/null || dir /s dist 2>nul || echo "No dist directory found"
+        
+        # On Unix, verify the files exist in the right place
+        if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
+          platform="${{ matrix.platform }}"
+          arch=$(uname -m)
+          if [[ "$arch" == "x86_64" ]]; then arch="x86_64"; fi
+          if [[ "$arch" == "aarch64" || "$arch" == "arm64" ]]; then arch="arm64"; fi
+          
+          echo "Checking for: dist/${platform}/${arch}/lumen.h"
+          if [[ -f "dist/${platform}/${arch}/lumen.h" ]]; then
+            echo "✅ Header file found"
+          else
+            echo "❌ Header file missing"
+            exit 1
+          fi
+          
+          # Check for at least one library file
+          if ls dist/${platform}/${arch}/*.{a,so,dylib} 2>/dev/null; then
+            echo "✅ Library files found"
+          else
+            echo "❌ No library files found"
+            exit 1
+          fi
+        fi
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Clang tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format clang-tidy
+        
+    - name: Check formatting
+      run: |
+        # For CI, we check formatting without modifying files
+        find src include tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
+        
+    - name: Run clang-tidy
+      run: |
+        make lint || true
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Clang
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang libc++-dev libc++abi-dev
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+      
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp
+        
+    - name: Build for security scan
+      run: |
+        make build
+        
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
