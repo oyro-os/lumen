@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <lumen/memory/allocator.h>
 
+#include <cstring>
 #include <thread>
 #include <vector>
 
