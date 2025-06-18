@@ -124,7 +124,7 @@ jobs:
           fi
           
           # Check for at least one library file
-          if ls dist/${platform}/${arch}/*.{a,so,dylib} 2>/dev/null; then
+          if ls dist/${platform}/${arch}/*.a 2>/dev/null || ls dist/${platform}/${arch}/*.so 2>/dev/null || ls dist/${platform}/${arch}/*.dylib 2>/dev/null; then
             echo "✅ Library files found"
           else
             echo "❌ No library files found"
