@@ -188,14 +188,34 @@ ci-test:
 
 format:
 	@echo "$(GREEN)Formatting code...$(NC)"
-	@find src include tests -name "*.cpp" -o -name "*.h" | xargs clang-format -i
-	@echo "$(GREEN)Code formatted!$(NC)"
+	@if command -v clang-format >/dev/null 2>&1; then \
+		find src include tests -name "*.cpp" -o -name "*.h" | xargs clang-format -i; \
+		echo "$(GREEN)Code formatted!$(NC)"; \
+	else \
+		echo "$(YELLOW)clang-format not found. Install with: brew install clang-format$(NC)"; \
+		exit 1; \
+	fi
+
+format-check:
+	@echo "$(GREEN)Checking code format...$(NC)"
+	@if command -v clang-format >/dev/null 2>&1; then \
+		find src include tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror; \
+		echo "$(GREEN)Code format check passed!$(NC)"; \
+	else \
+		echo "$(YELLOW)clang-format not found. Install with: brew install clang-format$(NC)"; \
+		exit 1; \
+	fi
 
 lint:
 	@echo "$(GREEN)Running clang-tidy...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug
-	@find src -name "*.cpp" | xargs clang-tidy -p $(BUILD_DIR)
+	@if command -v clang-tidy >/dev/null 2>&1; then \
+		mkdir -p $(BUILD_DIR); \
+		cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug; \
+		find src -name "*.cpp" | xargs clang-tidy -p $(BUILD_DIR); \
+	else \
+		echo "$(YELLOW)clang-tidy not found. Install with: brew install llvm$(NC)"; \
+		echo "$(YELLOW)Skipping lint check$(NC)"; \
+	fi
 
 check: format lint test
 	@echo "$(GREEN)All checks passed!$(NC)"
