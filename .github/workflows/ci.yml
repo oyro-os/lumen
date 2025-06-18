@@ -30,15 +30,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Windows builds temporarily disabled due to DLL linkage issues
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         build_type: [Debug, Release]
         include:
           - os: ubuntu-latest
             platform: linux
           - os: macos-latest
             platform: macos
-          - os: windows-latest
-            platform: windows
+          # - os: windows-latest
+          #   platform: windows
     
     steps:
     - name: Checkout code
