@@ -14,16 +14,14 @@ extern "C" {
 #define LUMEN_VERSION_MINOR 0
 #define LUMEN_VERSION_PATCH 0
 
-// Platform detection
+// Platform detection and export macros
 #ifdef _WIN32
     #ifdef LUMEN_SHARED_LIB
-        #ifdef LUMEN_EXPORTS
-            #define LUMEN_API __declspec(dllexport)
-        #else
-            #define LUMEN_API __declspec(dllimport)
-        #endif
-    #else
+        #define LUMEN_API __declspec(dllexport)
+    #elif defined(LUMEN_STATIC_LIB)
         #define LUMEN_API
+    #else
+        #define LUMEN_API __declspec(dllimport)
     #endif
 #else
     #ifdef LUMEN_SHARED_LIB
