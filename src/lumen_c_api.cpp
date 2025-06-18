@@ -48,8 +48,21 @@ static const char* const LUMEN_VERSION = "0.1.0";
 // Error handling
 extern "C" {
 
-const char* lumen_error_message(void) {
-    return g_error_message;
+const char* lumen_error_message(LumenResult result) {
+    switch (result) {
+        case LUMEN_OK: return "No error";
+        case LUMEN_ERROR_INVALID_ARGUMENT: return "Invalid argument";
+        case LUMEN_ERROR_OUT_OF_MEMORY: return "Out of memory";
+        case LUMEN_ERROR_FILE_NOT_FOUND: return "File not found";
+        case LUMEN_ERROR_FILE_CORRUPT: return "File corrupt";
+        case LUMEN_ERROR_PERMISSION_DENIED: return "Permission denied";
+        case LUMEN_ERROR_DISK_FULL: return "Disk full";
+        case LUMEN_ERROR_TRANSACTION_ABORTED: return "Transaction aborted";
+        case LUMEN_ERROR_DEADLOCK: return "Deadlock detected";
+        case LUMEN_ERROR_CONSTRAINT_VIOLATION: return "Constraint violation";
+        case LUMEN_ERROR_SCHEMA_MISMATCH: return "Schema mismatch";
+        default: return "Unknown error";
+    }
 }
 
 static void set_error(const char* message) {
@@ -210,7 +223,8 @@ LumenValue lumen_value_double(double val) {
 LumenValue lumen_value_string(const char* val) {
     LumenValue value = {};
     value.type = LUMEN_TYPE_STRING;
-    value.value.str = val;
+    value.value.string.data = val;
+    value.value.string.length = val ? std::strlen(val) : 0;
     return value;
 }
 
@@ -218,7 +232,7 @@ LumenValue lumen_value_blob(const void* data, size_t size) {
     LumenValue value = {};
     value.type = LUMEN_TYPE_BLOB;
     value.value.blob.data = data;
-    value.value.blob.size = size;
+    value.value.blob.length = size;
     return value;
 }
 
@@ -233,7 +247,7 @@ LumenValue lumen_value_vector(const float* data, size_t dimensions) {
 LumenValue lumen_value_boolean(bool val) {
     LumenValue value = {};
     value.type = LUMEN_TYPE_BOOLEAN;
-    value.value.b = val;
+    value.value.boolean = val;
     return value;
 }
 
@@ -244,19 +258,18 @@ void lumen_free_string(char* str) {
 }
 
 // Schema operations
-LumenResult lumen_schema_create(LumenDatabase database, LumenSchema* out_schema) {
-    if (!database || !out_schema) {
-        return LUMEN_ERROR_INVALID_ARGUMENT;
+LumenSchema lumen_schema_create(LumenDatabase database) {
+    if (!database) {
+        return nullptr;
     }
     
     lumen_schema_t* schema = (lumen_schema_t*)std::malloc(sizeof(lumen_schema_t));
     if (!schema) {
-        return LUMEN_ERROR_OUT_OF_MEMORY;
+        return nullptr;
     }
     
     schema->database = database;
-    *out_schema = schema;
-    return LUMEN_OK;
+    return schema;
 }
 
 LumenResult lumen_schema_destroy(LumenSchema schema) {
@@ -299,8 +312,9 @@ LumenResult lumen_schema_create_index(LumenSchema schema, const char* table_name
     return LUMEN_OK;
 }
 
-LumenResult lumen_schema_drop_index(LumenSchema schema, const char* index_name) {
-    return (!schema || !index_name) ? LUMEN_ERROR_INVALID_ARGUMENT : LUMEN_OK;
+LumenResult lumen_schema_drop_index(LumenSchema schema, const char* table_name,
+                                   const char* column_name) {
+    return (!schema || !table_name || !column_name) ? LUMEN_ERROR_INVALID_ARGUMENT : LUMEN_OK;
 }
 
 // Query builder operations
@@ -333,14 +347,14 @@ LumenResult lumen_query_destroy(LumenQueryBuilder query) {
     return LUMEN_OK;
 }
 
-LumenResult lumen_query_select(LumenQueryBuilder query, const char** columns, size_t count) {
+LumenResult lumen_query_select(LumenQueryBuilder query, const char* columns) {
     if (!query) return LUMEN_ERROR_INVALID_ARGUMENT;
     (void)columns;  // Unused parameter
-    (void)count;    // Unused parameter
     return LUMEN_OK;
 }
 
-LumenResult lumen_query_where(LumenQueryBuilder query, const char* column, LumenOperator op, LumenValue value) {
+LumenResult lumen_query_where(LumenQueryBuilder query, const char* column, 
+                             LumenOperator op, const LumenValue* value) {
     if (!query) return LUMEN_ERROR_INVALID_ARGUMENT;
     (void)column;  // Unused parameter
     (void)op;      // Unused parameter
@@ -392,17 +406,17 @@ LumenCollection lumen_query_get(LumenQueryBuilder query) {
     return collection;
 }
 
-LumenResult lumen_query_insert(LumenQueryBuilder query, LumenValue* values, size_t count) {
+LumenResult lumen_query_insert(LumenQueryBuilder query, const LumenValue* values, size_t count) {
     if (!query) return LUMEN_ERROR_INVALID_ARGUMENT;
     (void)values;  // Unused parameter
     (void)count;   // Unused parameter
     return LUMEN_OK;
 }
 
-LumenResult lumen_query_update(LumenQueryBuilder query, LumenValue* values, size_t count) {
+LumenResult lumen_query_update(LumenQueryBuilder query, const char* column, const LumenValue* value) {
     if (!query) return LUMEN_ERROR_INVALID_ARGUMENT;
-    (void)values;  // Unused parameter
-    (void)count;   // Unused parameter
+    (void)column;  // Unused parameter
+    (void)value;   // Unused parameter
     return LUMEN_OK;
 }
 
@@ -421,16 +435,17 @@ size_t lumen_collection_count(LumenCollection collection) {
     return collection ? collection->count : 0;
 }
 
-LumenResult lumen_collection_get_value(LumenCollection collection, size_t row, const char* column, 
-                                      LumenValue* out_value) {
-    if (!collection || !out_value) return LUMEN_ERROR_INVALID_ARGUMENT;
+LumenResult lumen_collection_get_value(LumenCollection collection, size_t row, 
+                                      const char* column, LumenValue* value) {
+    if (!collection || !value) return LUMEN_ERROR_INVALID_ARGUMENT;
     (void)row;     // Unused parameter
     (void)column;  // Unused parameter
-    *out_value = lumen_value_null();
+    *value = lumen_value_null();
     return LUMEN_OK;
 }
 
-LumenResult lumen_collection_each(LumenCollection collection, LumenEachCallback callback, 
+LumenResult lumen_collection_each(LumenCollection collection,
+                                 void (*callback)(size_t row, const LumenValue* values, size_t count, void* user_data),
                                  void* user_data) {
     if (!collection || !callback) return LUMEN_ERROR_INVALID_ARGUMENT;
     (void)user_data;  // Unused parameter
