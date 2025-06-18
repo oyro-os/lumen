@@ -175,7 +175,7 @@ windows-release: clean
 
 windows-test: windows-debug
 	@echo "$(GREEN)Running Windows tests...$(NC)"
-	@cd $(BUILD_DIR) && .\bin\Debug\lumen_tests.exe
+	@cd $(BUILD_DIR) && ./bin/Debug/lumen_tests.exe
 
 # Cross-compilation for Windows from Unix
 windows-cross: clean
