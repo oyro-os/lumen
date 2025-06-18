@@ -34,12 +34,14 @@ include(Dependencies)
 set(LUMEN_SOURCES
     src/lumen_c_api.cpp
     src/types.cpp
+    src/memory/allocator.cpp
 )
 
 # Public headers
 set(LUMEN_PUBLIC_HEADERS
     include/lumen/lumen.h
     include/lumen/types.h
+    include/lumen/memory/allocator.h
 )
 
 # Include directories
@@ -75,6 +77,39 @@ if(BUILD_SHARED_RELEASE)
         RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/dist/${LUMEN_PLATFORM}/${LUMEN_ARCH}
     )
     target_compile_definitions(lumen_shared_release PRIVATE LUMEN_SHARED_LIB)
+endif()
+
+# Set allocator compile definitions
+if(LUMEN_ALLOCATOR STREQUAL "MIMALLOC")
+    if(BUILD_STATIC)
+        target_compile_definitions(lumen_static PRIVATE LUMEN_USE_MIMALLOC)
+    endif()
+    if(BUILD_SHARED_DEBUG)
+        target_compile_definitions(lumen_shared_debug PRIVATE LUMEN_USE_MIMALLOC)
+    endif()
+    if(BUILD_SHARED_RELEASE)
+        target_compile_definitions(lumen_shared_release PRIVATE LUMEN_USE_MIMALLOC)
+    endif()
+elseif(LUMEN_ALLOCATOR STREQUAL "JEMALLOC")
+    if(BUILD_STATIC)
+        target_compile_definitions(lumen_static PRIVATE LUMEN_USE_JEMALLOC)
+    endif()
+    if(BUILD_SHARED_DEBUG)
+        target_compile_definitions(lumen_shared_debug PRIVATE LUMEN_USE_JEMALLOC)
+    endif()
+    if(BUILD_SHARED_RELEASE)
+        target_compile_definitions(lumen_shared_release PRIVATE LUMEN_USE_JEMALLOC)
+    endif()
+elseif(LUMEN_ALLOCATOR STREQUAL "TCMALLOC")
+    if(BUILD_STATIC)
+        target_compile_definitions(lumen_static PRIVATE LUMEN_USE_TCMALLOC)
+    endif()
+    if(BUILD_SHARED_DEBUG)
+        target_compile_definitions(lumen_shared_debug PRIVATE LUMEN_USE_TCMALLOC)
+    endif()
+    if(BUILD_SHARED_RELEASE)
+        target_compile_definitions(lumen_shared_release PRIVATE LUMEN_USE_TCMALLOC)
+    endif()
 endif()
 
 # Link allocator libraries

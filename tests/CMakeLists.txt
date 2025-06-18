@@ -6,6 +6,7 @@ add_executable(lumen_tests
     test_storage.cpp
     test_c_api.cpp
     test_types.cpp
+    test_allocator.cpp
 )
 
 # Link libraries
