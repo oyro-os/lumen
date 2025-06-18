@@ -152,17 +152,24 @@ linux: clean
 
 windows: windows-release
 
+# Detect Visual Studio version for Windows builds
+ifeq ($(OS),Windows_NT)
+    VS_VERSION := $(shell cmake --help | grep -o "Visual Studio [0-9][0-9] [0-9][0-9][0-9][0-9]" | head -1 || echo "Visual Studio 16 2019")
+else
+    VS_VERSION := Visual Studio 16 2019
+endif
+
 windows-debug: clean
-	@echo "$(GREEN)Building for Windows (Debug)...$(NC)"
+	@echo "$(GREEN)Building for Windows (Debug) using $(VS_VERSION)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake .. -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTS=ON
+	@cd $(BUILD_DIR) && cmake .. -G "$(VS_VERSION)" -A x64 -DBUILD_TESTS=ON
 	@cd $(BUILD_DIR) && cmake --build . --config Debug --parallel
 	@echo "$(GREEN)Windows Debug build complete!$(NC)"
 
 windows-release: clean
-	@echo "$(GREEN)Building for Windows (Release)...$(NC)"
+	@echo "$(GREEN)Building for Windows (Release) using $(VS_VERSION)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake .. -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTS=OFF
+	@cd $(BUILD_DIR) && cmake .. -G "$(VS_VERSION)" -A x64 -DBUILD_TESTS=OFF
 	@cd $(BUILD_DIR) && cmake --build . --config Release --parallel
 	@echo "$(GREEN)Windows Release build complete!$(NC)"
 
