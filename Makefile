@@ -150,7 +150,7 @@ linux: clean
 	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
 	@echo "$(GREEN)Linux build complete!$(NC)"
 
-windows: windows-release
+windows: windows-cross
 
 # Detect Visual Studio version for Windows builds
 ifeq ($(OS),Windows_NT)
@@ -176,6 +176,23 @@ windows-release: clean
 windows-test: windows-debug
 	@echo "$(GREEN)Running Windows tests...$(NC)"
 	@cd $(BUILD_DIR) && .\bin\Debug\lumen_tests.exe
+
+# Cross-compilation for Windows from Unix
+windows-cross: clean
+	@echo "$(GREEN)Cross-compiling for Windows x64...$(NC)"
+	@if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then \
+		echo "$(RED)MinGW-w64 not found. Install with:$(NC)"; \
+		echo "  Ubuntu/Debian: sudo apt-get install mingw-w64"; \
+		echo "  macOS: brew install mingw-w64"; \
+		echo "  Arch: sudo pacman -S mingw-w64"; \
+		exit 1; \
+	fi
+	@mkdir -p $(BUILD_DIR)
+	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/Windows.cmake \
+		-DBUILD_TESTS=OFF
+	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
+	@echo "$(GREEN)Windows cross-compilation complete!$(NC)"
 
 # CI/CD targets
 ci-test:

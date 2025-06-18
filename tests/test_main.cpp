@@ -2,11 +2,11 @@
 #include <lumen/lumen.h>
 
 class LumenTestEnvironment : public ::testing::Environment {
-public:
+   public:
     void SetUp() override {
         ASSERT_EQ(LUMEN_OK, lumen_initialize());
     }
-    
+
     void TearDown() override {
         lumen_shutdown();
     }

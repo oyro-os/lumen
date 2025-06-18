@@ -5,9 +5,9 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 // Version information
 #define LUMEN_VERSION_MAJOR 0
@@ -16,19 +16,19 @@ extern "C" {
 
 // Platform detection and export macros
 #ifdef _WIN32
-    #ifdef LUMEN_SHARED_LIB
-        #define LUMEN_API __declspec(dllexport)
-    #elif defined(LUMEN_STATIC_LIB)
-        #define LUMEN_API
-    #else
-        #define LUMEN_API __declspec(dllimport)
-    #endif
+#ifdef LUMEN_SHARED_LIB
+#define LUMEN_API __declspec(dllexport)
+#elif defined(LUMEN_STATIC_LIB)
+#define LUMEN_API
 #else
-    #ifdef LUMEN_SHARED_LIB
-        #define LUMEN_API __attribute__((visibility("default")))
-    #else
-        #define LUMEN_API
-    #endif
+#define LUMEN_API __declspec(dllimport)
+#endif
+#else
+#ifdef LUMEN_SHARED_LIB
+#define LUMEN_API __attribute__((visibility("default")))
+#else
+#define LUMEN_API
+#endif
 #endif
 
 // Forward declarations - opaque handles
@@ -87,13 +87,13 @@ typedef enum {
 
 // Comparison operators
 typedef enum {
-    LUMEN_OP_EQ = 0,    // =
-    LUMEN_OP_NE = 1,    // !=
-    LUMEN_OP_LT = 2,    // <
-    LUMEN_OP_LE = 3,    // <=
-    LUMEN_OP_GT = 4,    // >
-    LUMEN_OP_GE = 5,    // >=
-    LUMEN_OP_IN = 6,    // IN
+    LUMEN_OP_EQ = 0,        // =
+    LUMEN_OP_NE = 1,        // !=
+    LUMEN_OP_LT = 2,        // <
+    LUMEN_OP_LE = 3,        // <=
+    LUMEN_OP_GT = 4,        // >
+    LUMEN_OP_GE = 5,        // >=
+    LUMEN_OP_IN = 6,        // IN
     LUMEN_OP_NOT_IN = 7,    // NOT IN
     LUMEN_OP_LIKE = 8,      // LIKE
     LUMEN_OP_NOT_LIKE = 9,  // NOT LIKE
@@ -147,38 +147,42 @@ LUMEN_API LumenSchema lumen_schema_create(LumenDatabase database);
 LUMEN_API LumenResult lumen_schema_destroy(LumenSchema schema);
 LUMEN_API LumenResult lumen_schema_create_table(LumenSchema schema, const char* table_name);
 LUMEN_API LumenResult lumen_schema_drop_table(LumenSchema schema, const char* table_name);
-LUMEN_API LumenResult lumen_schema_add_column(LumenSchema schema, const char* table_name, 
-                                             const char* column_name, LumenDataType type);
-LUMEN_API LumenResult lumen_schema_drop_column(LumenSchema schema, const char* table_name, 
-                                              const char* column_name);
+LUMEN_API LumenResult lumen_schema_add_column(LumenSchema schema, const char* table_name,
+                                              const char* column_name, LumenDataType type);
+LUMEN_API LumenResult lumen_schema_drop_column(LumenSchema schema, const char* table_name,
+                                               const char* column_name);
 LUMEN_API LumenResult lumen_schema_create_index(LumenSchema schema, const char* table_name,
-                                               const char* column_name, LumenIndexType type);
+                                                const char* column_name, LumenIndexType type);
 LUMEN_API LumenResult lumen_schema_drop_index(LumenSchema schema, const char* table_name,
-                                             const char* column_name);
+                                              const char* column_name);
 
 // Query builder operations
 LUMEN_API LumenQueryBuilder lumen_query_create(LumenDatabase database, const char* table_name);
 LUMEN_API LumenResult lumen_query_destroy(LumenQueryBuilder query);
 LUMEN_API LumenResult lumen_query_select(LumenQueryBuilder query, const char* columns);
-LUMEN_API LumenResult lumen_query_where(LumenQueryBuilder query, const char* column, 
-                                       LumenOperator op, const LumenValue* value);
-LUMEN_API LumenResult lumen_query_order_by(LumenQueryBuilder query, const char* column, bool ascending);
+LUMEN_API LumenResult lumen_query_where(LumenQueryBuilder query, const char* column,
+                                        LumenOperator op, const LumenValue* value);
+LUMEN_API LumenResult lumen_query_order_by(LumenQueryBuilder query, const char* column,
+                                           bool ascending);
 LUMEN_API LumenResult lumen_query_limit(LumenQueryBuilder query, size_t limit);
 LUMEN_API LumenResult lumen_query_offset(LumenQueryBuilder query, size_t offset);
 LUMEN_API char* lumen_query_to_sql(LumenQueryBuilder query);
 LUMEN_API LumenCollection lumen_query_get(LumenQueryBuilder query);
-LUMEN_API LumenResult lumen_query_insert(LumenQueryBuilder query, const LumenValue* values, size_t count);
-LUMEN_API LumenResult lumen_query_update(LumenQueryBuilder query, const char* column, const LumenValue* value);
+LUMEN_API LumenResult lumen_query_insert(LumenQueryBuilder query, const LumenValue* values,
+                                         size_t count);
+LUMEN_API LumenResult lumen_query_update(LumenQueryBuilder query, const char* column,
+                                         const LumenValue* value);
 LUMEN_API LumenResult lumen_query_delete(LumenQueryBuilder query);
 
 // Collection operations
 LUMEN_API LumenResult lumen_collection_destroy(LumenCollection collection);
 LUMEN_API size_t lumen_collection_count(LumenCollection collection);
-LUMEN_API LumenResult lumen_collection_get_value(LumenCollection collection, size_t row, 
-                                                const char* column, LumenValue* value);
+LUMEN_API LumenResult lumen_collection_get_value(LumenCollection collection, size_t row,
+                                                 const char* column, LumenValue* value);
 LUMEN_API LumenResult lumen_collection_each(LumenCollection collection,
-                                           void (*callback)(size_t row, const LumenValue* values, size_t count, void* user_data),
-                                           void* user_data);
+                                            void (*callback)(size_t row, const LumenValue* values,
+                                                             size_t count, void* user_data),
+                                            void* user_data);
 
 // Transaction operations
 LUMEN_API LumenTransaction lumen_transaction_begin(LumenDatabase database);
@@ -207,4 +211,4 @@ LUMEN_API LumenValue lumen_value_boolean(bool value);
 }
 #endif
 
-#endif // LUMEN_H
+#endif  // LUMEN_H
