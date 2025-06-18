@@ -1,0 +1,49 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# Dependencies
+third_party/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Compiled files
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Test coverage
+*.gcda
+*.gcno
+*.gcov
+coverage/
+coverage.info
+
+# Debug files
+*.dSYM/
+*.pdb
+
+# Distribution files
+dist/
+
+# Database files (except test fixtures)
+*.lumen
+*.lumen-wal
+!tests/fixtures/*.lumen
+
+# Temporary files
+*.tmp
+*.temp
+*.log
