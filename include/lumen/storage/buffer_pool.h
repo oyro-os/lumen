@@ -2,6 +2,7 @@
 #define LUMEN_STORAGE_BUFFER_POOL_H
 
 #include <lumen/storage/page.h>
+#include <lumen/storage/storage_interface.h>
 #include <lumen/types.h>
 
 #include <atomic>
@@ -120,8 +121,14 @@ struct BufferPoolStats {
 // Main buffer pool manager class
 class BufferPool {
    public:
+    // Constructor with storage backend (new)
+    explicit BufferPool(size_t pool_size, IStorageBackend* storage_backend,
+                        std::unique_ptr<EvictionPolicy> eviction_policy = nullptr);
+
+    // Constructor without storage backend (legacy)
     explicit BufferPool(size_t pool_size,
                         std::unique_ptr<EvictionPolicy> eviction_policy = nullptr);
+
     ~BufferPool();
 
     // Non-copyable and non-movable
@@ -135,6 +142,7 @@ class BufferPool {
     bool unpin_page(PageID page_id, bool is_dirty = false);
     bool delete_page(PageID page_id);
     PageRef new_page(PageType type = PageType::Data);
+    PageRef new_page(PageID page_id, PageType type = PageType::Data);  // Use specific page ID
 
     // Buffer pool operations
     bool flush_page(PageID page_id);
@@ -163,7 +171,8 @@ class BufferPool {
     std::unordered_map<PageID, FrameID> page_table_;
     std::vector<FrameID> free_frames_;
     std::unique_ptr<EvictionPolicy> eviction_policy_;
-    std::weak_ptr<StorageEngine> storage_engine_;
+    IStorageBackend* storage_backend_;             // Non-owning pointer
+    std::weak_ptr<StorageEngine> storage_engine_;  // Legacy support
 
     // Synchronization
     mutable std::shared_mutex table_mutex_;

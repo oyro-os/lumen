@@ -3,6 +3,7 @@
 
 #include <lumen/storage/buffer_pool.h>
 #include <lumen/storage/page.h>
+#include <lumen/storage/storage_interface.h>
 #include <lumen/types.h>
 
 #include <atomic>
@@ -85,7 +86,7 @@ class FileHandle {
 };
 
 // Main storage engine class
-class StorageEngine : public std::enable_shared_from_this<StorageEngine> {
+class StorageEngine : public std::enable_shared_from_this<StorageEngine>, public IStorageBackend {
    public:
     explicit StorageEngine(const StorageConfig& config = StorageConfig::default_config());
     ~StorageEngine();
@@ -169,9 +170,9 @@ class StorageEngine : public std::enable_shared_from_this<StorageEngine> {
     void deallocate_page(PageID page_id);
 
    public:  // Made public for BufferPool integration
-    // Page I/O
-    std::shared_ptr<Page> read_page_from_disk(PageID page_id);
-    bool write_page_to_disk(const Page& page);
+    // Page I/O (implements IStorageBackend)
+    std::shared_ptr<Page> read_page_from_disk(PageID page_id) override;
+    bool write_page_to_disk(const Page& page) override;
 
    private:
     // Initialization

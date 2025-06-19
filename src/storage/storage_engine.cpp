@@ -6,6 +6,15 @@
 #include <iomanip>
 #include <sstream>
 
+#ifdef _WIN32
+#include <io.h>
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 namespace lumen {
 
 // FileHandle implementation
@@ -83,8 +92,61 @@ bool FileHandle::sync() {
         return false;
     }
 
+    // Flush C++ stream buffer to OS first
     file_.flush();
-    return file_.good();
+    if (!file_.good()) {
+        return false;
+    }
+
+// Force OS-level sync to disk
+#ifdef _WIN32
+    // Windows: Use FlushFileBuffers
+    HANDLE handle = reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(file_.rdbuf())));
+    if (handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    return FlushFileBuffers(handle) != 0;
+#else
+    // Unix/Linux/macOS: Use fsync
+    // Get file descriptor from the std::fstream
+    // This is a bit hacky but works on most platforms
+    FILE* cfile = nullptr;
+
+    // Use the file descriptor from the iostream
+    // Note: This is implementation-dependent but works on most systems
+    int fd = -1;
+
+    // Try to extract file descriptor from the stream
+    // Use fileno if we can get it
+    std::filebuf* pbuf = file_.rdbuf();
+    if (pbuf != nullptr) {
+        // Close current stream, sync via low-level operations, and reopen
+        // This ensures proper sync without relying on stream internals
+
+        // Get current position
+        auto pos = file_.tellp();
+
+        // Close stream
+        file_.close();
+
+        // Open with low-level file operations and sync
+        fd = ::open(path_.c_str(), O_RDWR);
+        if (fd != -1) {
+            ::fsync(fd);  // Force sync to disk
+            ::close(fd);
+        }
+
+        // Reopen stream
+        file_.open(path_, std::ios::in | std::ios::out | std::ios::binary);
+        if (file_.is_open() && pos != std::streampos(-1)) {
+            file_.seekp(pos);
+        }
+
+        return file_.good();
+    }
+
+    return false;
+#endif
 }
 
 size_t FileHandle::size() const {
@@ -98,9 +160,27 @@ size_t FileHandle::size() const {
 }
 
 bool FileHandle::truncate(size_t new_size) {
-    // Platform-specific implementation would go here
-    // For now, we'll just return false as truncation requires OS-specific calls
-    return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (!file_.is_open()) {
+        return false;
+    }
+    
+    try {
+        // Close and reopen the file to perform truncation
+        file_.close();
+        
+        // Truncate using filesystem operations
+        std::filesystem::resize_file(path_, new_size);
+        
+        // Reopen the file
+        file_.open(path_, std::ios::in | std::ios::out | std::ios::binary);
+        return file_.is_open();
+    } catch (const std::exception&) {
+        // Try to reopen the file even if truncation failed
+        file_.open(path_, std::ios::in | std::ios::out | std::ios::binary);
+        return false;
+    }
 }
 
 // StorageEngine implementation
@@ -367,7 +447,36 @@ bool StorageEngine::load_metadata() {
 
     // Load free pages
     if (metadata_.first_free_page != kInvalidPageID) {
-        // TODO: Load free page list from disk
+        std::lock_guard<std::mutex> lock(free_pages_mutex_);
+        free_pages_.clear();
+        free_pages_.reserve(metadata_.free_page_count);
+        
+        PageID current_page = metadata_.first_free_page;
+        size_t loaded_count = 0;
+        
+        while (current_page != kInvalidPageID && loaded_count < metadata_.free_page_count) {
+            // Read the free page to get the next free page ID
+            auto page = read_page_from_disk(current_page);
+            if (!page) {
+                break;
+            }
+            
+            free_pages_.push_back(current_page);
+            loaded_count++;
+            
+            // Free pages store the next free page ID in their first 4 bytes
+            if (kPageSize >= sizeof(PageID)) {
+                std::memcpy(&current_page, page->data(), sizeof(PageID));
+            } else {
+                break;
+            }
+        }
+        
+        // Verify we loaded the expected number of free pages
+        if (loaded_count != metadata_.free_page_count) {
+            metadata_.free_page_count = loaded_count;
+            save_metadata();
+        }
     }
 
     return true;
@@ -413,8 +522,16 @@ FileHandle* StorageEngine::get_or_create_page_file(PageID page_id) {
     std::filesystem::create_directories(page_path.parent_path());
 
     // Open or create the file
-    auto file_handle =
-        std::make_unique<FileHandle>(page_path, std::ios::in | std::ios::out | std::ios::app);
+    // IMPORTANT: Don't use std::ios::app as it forces all writes to EOF!
+    // Try to open existing file first, then create if needed
+    std::unique_ptr<FileHandle> file_handle;
+    try {
+        file_handle = std::make_unique<FileHandle>(page_path, std::ios::in | std::ios::out);
+    } catch (const std::runtime_error&) {
+        // File doesn't exist, create it
+        file_handle =
+            std::make_unique<FileHandle>(page_path, std::ios::in | std::ios::out | std::ios::trunc);
+    }
 
     FileHandle* handle_ptr = file_handle.get();
     page_files_[page_id] = std::move(file_handle);

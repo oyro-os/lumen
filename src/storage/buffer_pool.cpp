@@ -1,5 +1,6 @@
 #include <lumen/storage/buffer_pool.h>
 #include <lumen/storage/storage_engine.h>
+#include <lumen/storage/storage_interface.h>
 
 #include <algorithm>
 #include <chrono>
@@ -117,8 +118,37 @@ void ClockEvictionPolicy::reset() {
 }
 
 // BufferPool implementation
+BufferPool::BufferPool(size_t pool_size, IStorageBackend* storage_backend,
+                       std::unique_ptr<EvictionPolicy> eviction_policy)
+    : pool_size_(pool_size),
+      frames_(pool_size),
+      eviction_policy_(std::move(eviction_policy)),
+      storage_backend_(storage_backend) {
+    if (pool_size_ == 0) {
+        throw std::invalid_argument("Buffer pool size must be greater than 0");
+    }
+    if (!storage_backend_) {
+        throw std::invalid_argument("Storage backend cannot be null");
+    }
+
+    // Initialize free frame list
+    free_frames_.reserve(pool_size_);
+    for (size_t i = 0; i < pool_size_; ++i) {
+        free_frames_.push_back(static_cast<FrameID>(i));
+    }
+
+    // Create default eviction policy if none provided
+    if (!eviction_policy_) {
+        eviction_policy_ = std::make_unique<ClockEvictionPolicy>(pool_size_);
+    }
+}
+
+// Legacy constructor without storage backend
 BufferPool::BufferPool(size_t pool_size, std::unique_ptr<EvictionPolicy> eviction_policy)
-    : pool_size_(pool_size), frames_(pool_size), eviction_policy_(std::move(eviction_policy)) {
+    : pool_size_(pool_size),
+      frames_(pool_size),
+      eviction_policy_(std::move(eviction_policy)),
+      storage_backend_(nullptr) {
     if (pool_size_ == 0) {
         throw std::invalid_argument("Buffer pool size must be greater than 0");
     }
@@ -290,6 +320,51 @@ PageRef BufferPool::new_page(PageType type) {
     return PageRef{page};
 }
 
+PageRef BufferPool::new_page(PageID page_id, PageType type) {
+    // Check if page already exists
+    {
+        std::shared_lock<std::shared_mutex> lock(table_mutex_);
+        auto it = page_table_.find(page_id);
+        if (it != page_table_.end()) {
+            return PageRef();  // Page already exists
+        }
+    }
+
+    // Find a frame for the new page
+    FrameID frame_id = find_free_frame();
+    if (frame_id == kInvalidFrameID) {
+        frame_id = evict_frame();
+        if (frame_id == kInvalidFrameID) {
+            return PageRef{};
+        }
+    }
+
+    // Create new page with specific ID
+    auto unique_page = PageFactory::create_page(page_id, type);
+    std::shared_ptr<Page> page = std::move(unique_page);
+
+    // Mark the page as dirty since it's a new page
+    page->mark_dirty();
+
+    Frame& frame = frames_[frame_id];
+
+    // Install page in frame
+    {
+        std::unique_lock<std::shared_mutex> frame_lock(frame.mutex);
+        std::unique_lock<std::shared_mutex> table_lock(table_mutex_);
+
+        frame.page = page;
+        frame.is_dirty.store(true, std::memory_order_relaxed);  // New page is dirty
+        frame.pin();
+        frame.update_access_time();
+
+        page_table_[page_id] = frame_id;
+    }
+
+    update_frame_access(frame_id);
+    return PageRef{page};
+}
+
 bool BufferPool::flush_page(PageID page_id) {
     std::shared_lock<std::shared_mutex> lock(table_mutex_);
     auto it = page_table_.find(page_id);
@@ -416,9 +491,15 @@ FrameID BufferPool::evict_frame() {
 }
 
 bool BufferPool::write_page_to_storage(const Page& page) {
+    // Use new storage backend if available
+    if (storage_backend_) {
+        return storage_backend_->write_page_to_disk(page);
+    }
+
+    // Fall back to legacy storage engine
     auto engine = storage_engine_.lock();
     if (!engine) {
-        // No storage engine attached, just return true
+        // No storage attached, just return true
         return true;
     }
 
@@ -427,9 +508,15 @@ bool BufferPool::write_page_to_storage(const Page& page) {
 }
 
 std::shared_ptr<Page> BufferPool::read_page_from_storage(PageID page_id) {
+    // Use new storage backend if available
+    if (storage_backend_) {
+        return storage_backend_->read_page_from_disk(page_id);
+    }
+
+    // Fall back to legacy storage engine
     auto engine = storage_engine_.lock();
     if (!engine) {
-        // No storage engine attached, create a new page
+        // No storage attached, create a new page
         auto unique_page = PageFactory::create_page(page_id, PageType::Data);
         return std::shared_ptr<Page>(std::move(unique_page));
     }

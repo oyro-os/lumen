@@ -141,6 +141,13 @@ Timestamp Value::asTimestamp() const {
     throw std::runtime_error("Value is not a timestamp");
 }
 
+const std::vector<std::pair<std::string, Value>>& Value::asJson() const {
+    if (auto* v = std::get_if<std::vector<std::pair<std::string, Value>>>(&data_)) {
+        return *v;
+    }
+    throw std::runtime_error("Value is not a JSON object");
+}
+
 bool Value::getBool(bool defaultValue) const {
     if (auto* v = std::get_if<bool>(&data_)) {
         return *v;
@@ -193,8 +200,12 @@ size_t Value::serializedSize() const {
             } else if constexpr (std::is_same_v<T, std::vector<float>>) {
                 size += sizeof(uint32_t) + v.size() * sizeof(float);
             } else if constexpr (std::is_same_v<T, std::vector<std::pair<std::string, Value>>>) {
-                // JSON - not implemented yet
-                size += sizeof(uint32_t);
+                // JSON object - calculate size of key-value pairs
+                size += sizeof(uint32_t);  // Number of pairs
+                for (const auto& [key, value] : v) {
+                    size += sizeof(uint32_t) + key.size();  // Key length + key data
+                    size += value.serializedSize();         // Recursive value size
+                }
             } else if constexpr (std::is_same_v<T, Timestamp>) {
                 size += sizeof(int64_t);
             } else {
@@ -226,8 +237,21 @@ void Value::serialize(byte* buffer) const {
                 std::memcpy(buffer, v.data(), v.size() * sizeof(float));
                 buffer += v.size() * sizeof(float);
             } else if constexpr (std::is_same_v<T, std::vector<std::pair<std::string, Value>>>) {
-                // JSON - not implemented yet
-                writeToBuffer(buffer, uint32_t(0));
+                // JSON object serialization
+                writeToBuffer(buffer, static_cast<uint32_t>(v.size()));
+                buffer += sizeof(uint32_t);
+                
+                for (const auto& [key, value] : v) {
+                    // Write key
+                    writeToBuffer(buffer, static_cast<uint32_t>(key.size()));
+                    buffer += sizeof(uint32_t);
+                    std::memcpy(buffer, key.data(), key.size());
+                    buffer += key.size();
+                    
+                    // Write value recursively
+                    value.serialize(buffer);
+                    buffer += value.serializedSize();
+                }
             } else if constexpr (std::is_same_v<T, Timestamp>) {
                 writeToBuffer(buffer, v.value);
             } else {
@@ -327,10 +351,30 @@ Value Value::deserialize(const byte* buffer, size_t& offset) {
             offset += sizeof(int64_t);
             return Value(Timestamp(ts_value));
         }
-        case DataType::Json:
-            // Not implemented yet
+        case DataType::Json: {
+            uint32_t pair_count = readFromBuffer<uint32_t>(ptr);
             offset += sizeof(uint32_t);
-            return Value();
+            
+            std::vector<std::pair<std::string, Value>> json_obj;
+            json_obj.reserve(pair_count);
+            
+            for (uint32_t i = 0; i < pair_count; ++i) {
+                // Read key
+                const byte* key_ptr = buffer + offset;
+                uint32_t key_length = readFromBuffer<uint32_t>(key_ptr);
+                offset += sizeof(uint32_t);
+                
+                std::string key(reinterpret_cast<const char*>(buffer + offset), key_length);
+                offset += key_length;
+                
+                // Read value recursively
+                Value value = deserialize(buffer, offset);
+                
+                json_obj.emplace_back(std::move(key), std::move(value));
+            }
+            
+            return Value(std::move(json_obj));
+        }
     }
     return Value();
 }
@@ -366,7 +410,15 @@ std::string Value::toString() const {
             } else if constexpr (std::is_same_v<T, std::vector<float>>) {
                 return "<vector:" + std::to_string(v.size()) + " dims>";
             } else if constexpr (std::is_same_v<T, std::vector<std::pair<std::string, Value>>>) {
-                return "<json>";
+                std::string result = "{";
+                bool first = true;
+                for (const auto& [key, value] : v) {
+                    if (!first) result += ", ";
+                    result += "\"" + key + "\": " + value.toString();
+                    first = false;
+                }
+                result += "}";
+                return result;
             } else if constexpr (std::is_same_v<T, Timestamp>) {
                 return std::to_string(v.value);
             } else {

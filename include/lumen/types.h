@@ -36,7 +36,7 @@ struct Timestamp {
 };
 
 // Constants
-constexpr size_t kPageSize = 16384;  // 16KB pages
+constexpr size_t kPageSize = 4096;  // 4KB pages (matches OS page size)
 constexpr size_t kCacheLineSize = 64;
 constexpr PageID kInvalidPageID = 0;
 constexpr FrameID kInvalidFrameID = UINT32_MAX;
@@ -95,6 +95,8 @@ class Value {
     explicit Value(const std::vector<float>& v) : data_(v) {}
     explicit Value(std::vector<float>&& v) : data_(std::move(v)) {}
     explicit Value(const Timestamp& v) : data_(v) {}
+    explicit Value(const std::vector<std::pair<std::string, Value>>& v) : data_(v) {}
+    explicit Value(std::vector<std::pair<std::string, Value>>&& v) : data_(std::move(v)) {}
 
     // Type checking
     bool isNull() const {
@@ -126,6 +128,9 @@ class Value {
     bool isTimestamp() const {
         return std::holds_alternative<Timestamp>(data_);
     }
+    bool isJson() const {
+        return std::holds_alternative<std::vector<std::pair<std::string, Value>>>(data_);
+    }
 
     // Get data type
     DataType type() const;
@@ -139,6 +144,7 @@ class Value {
     const std::vector<byte>& asBlob() const;
     const std::vector<float>& asVector() const;
     Timestamp asTimestamp() const;
+    const std::vector<std::pair<std::string, Value>>& asJson() const;
 
     // Safe getters with defaults
     bool getBool(bool defaultValue = false) const;
