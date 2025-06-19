@@ -174,7 +174,6 @@ class StorageEngine : public std::enable_shared_from_this<StorageEngine> {
     bool write_page_to_disk(const Page& page);
 
    private:
-
     // Initialization
     bool initialize_new_database();
     bool open_existing_database();
@@ -194,7 +193,7 @@ class StorageManager {
 
     // Storage engine management
     std::shared_ptr<StorageEngine> create_engine(const std::string& name,
-                                                  const StorageConfig& config);
+                                                 const StorageConfig& config);
     std::shared_ptr<StorageEngine> get_engine(const std::string& name);
     bool remove_engine(const std::string& name);
     std::vector<std::string> list_engines() const;

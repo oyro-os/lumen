@@ -9,11 +9,10 @@
 namespace lumen {
 
 // FileHandle implementation
-FileHandle::FileHandle(const std::filesystem::path& path, std::ios::openmode mode)
-    : path_(path) {
+FileHandle::FileHandle(const std::filesystem::path& path, std::ios::openmode mode) : path_(path) {
     // Ensure parent directory exists
     std::filesystem::create_directories(path_.parent_path());
-    
+
     file_.open(path_, mode | std::ios::binary);
     if (!file_.is_open()) {
         throw std::runtime_error("Failed to open file: " + path_.string());
@@ -326,7 +325,7 @@ std::filesystem::path StorageEngine::database_path(const std::string& db_name) c
 }
 
 std::filesystem::path StorageEngine::page_file_path(const std::string& db_name,
-                                                     PageID page_id) const {
+                                                    PageID page_id) const {
     // Use a simple naming scheme: pages are stored in subdirectories
     // to avoid having too many files in one directory
     std::stringstream ss;
@@ -335,8 +334,8 @@ std::filesystem::path StorageEngine::page_file_path(const std::string& db_name,
 
     // Create subdirectories based on page ID (e.g., 00/00/00000001.page)
     std::filesystem::path db_path = database_path(db_name);
-    std::filesystem::path page_path = db_path / page_str.substr(0, 2) / page_str.substr(2, 2) /
-                                      (page_str + ".page");
+    std::filesystem::path page_path =
+        db_path / page_str.substr(0, 2) / page_str.substr(2, 2) / (page_str + ".page");
 
     return page_path;
 }
@@ -386,7 +385,7 @@ bool StorageEngine::save_metadata() {
 
     bool write_result = metadata_file_->write(&metadata_, sizeof(metadata_), 0);
     bool sync_result = metadata_file_->sync();
-    
+
     return write_result && sync_result;
 }
 
@@ -414,8 +413,8 @@ FileHandle* StorageEngine::get_or_create_page_file(PageID page_id) {
     std::filesystem::create_directories(page_path.parent_path());
 
     // Open or create the file
-    auto file_handle = std::make_unique<FileHandle>(
-        page_path, std::ios::in | std::ios::out | std::ios::app);
+    auto file_handle =
+        std::make_unique<FileHandle>(page_path, std::ios::in | std::ios::out | std::ios::app);
 
     FileHandle* handle_ptr = file_handle.get();
     page_files_[page_id] = std::move(file_handle);
@@ -513,8 +512,8 @@ bool StorageEngine::initialize_new_database() {
     // Create metadata file
     std::filesystem::path metadata_path = db_path / "metadata.db";
     try {
-        metadata_file_ = std::make_unique<FileHandle>(metadata_path,
-                                                      std::ios::in | std::ios::out | std::ios::trunc);
+        metadata_file_ = std::make_unique<FileHandle>(
+            metadata_path, std::ios::in | std::ios::out | std::ios::trunc);
     } catch (const std::exception& e) {
         return false;
     }
@@ -532,8 +531,7 @@ bool StorageEngine::open_existing_database() {
         return false;
     }
 
-    metadata_file_ =
-        std::make_unique<FileHandle>(metadata_path, std::ios::in | std::ios::out);
+    metadata_file_ = std::make_unique<FileHandle>(metadata_path, std::ios::in | std::ios::out);
 
     // Load metadata
     return load_metadata();
@@ -556,7 +554,7 @@ StorageManager& StorageManager::instance() {
 }
 
 std::shared_ptr<StorageEngine> StorageManager::create_engine(const std::string& name,
-                                                              const StorageConfig& config) {
+                                                             const StorageConfig& config) {
     std::unique_lock<std::shared_mutex> lock(mutex_);
 
     auto it = engines_.find(name);
