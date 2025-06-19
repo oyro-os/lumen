@@ -1,5 +1,6 @@
 #include <lumen/storage/storage_engine.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <iomanip>
@@ -189,6 +190,14 @@ void StorageEngine::close() {
 PageRef StorageEngine::fetch_page(PageID page_id) {
     if (!is_open()) {
         return PageRef{};
+    }
+
+    // Check if page is in free list (deleted)
+    {
+        std::lock_guard<std::mutex> lock(free_pages_mutex_);
+        if (std::find(free_pages_.begin(), free_pages_.end(), page_id) != free_pages_.end()) {
+            return PageRef{};  // Page is deleted
+        }
     }
 
     // Try buffer pool first
@@ -489,10 +498,9 @@ bool StorageEngine::write_page_to_disk(const Page& page) {
 }
 
 bool StorageEngine::initialize_new_database() {
-    // Create database directory
+    // Database directory should already exist from open()
     std::filesystem::path db_path = database_path(current_database_);
-    std::error_code ec;
-    if (!std::filesystem::create_directories(db_path, ec)) {
+    if (!std::filesystem::exists(db_path)) {
         return false;
     }
 
