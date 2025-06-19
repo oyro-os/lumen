@@ -91,7 +91,7 @@ TEST_F(BufferPoolTest, PageEviction) {
         PageRef page = buffer_pool_->new_page(PageType::Data);
         ASSERT_TRUE(page);
         page_ids.push_back(page->page_id());
-        
+
         // Unpin immediately to allow eviction
         buffer_pool_->unpin_page(page->page_id(), false);
     }
@@ -172,11 +172,11 @@ TEST_F(BufferPoolTest, FlushAllPages) {
         PageRef page = buffer_pool_->new_page(PageType::Data);
         ASSERT_TRUE(page);
         page_ids.push_back(page->page_id());
-        
+
         // Insert data to make dirty
         std::string data = "Test data " + std::to_string(i);
         page->insert_record(data.c_str(), data.size());
-        
+
         buffer_pool_->unpin_page(page->page_id(), true);
         pages.push_back(page);
     }
@@ -191,7 +191,7 @@ TEST_F(BufferPoolTest, FlushAllPages) {
 
 TEST_F(BufferPoolTest, Statistics) {
     const auto& stats = buffer_pool_->stats();
-    
+
     // Initial state
     EXPECT_EQ(stats.page_requests.load(), 0u);
     EXPECT_EQ(stats.page_hits.load(), 0u);
@@ -257,11 +257,11 @@ TEST_F(BufferPoolTest, ConcurrentAccess) {
                 PageRef page = buffer_pool_->new_page(PageType::Data);
                 if (page) {
                     thread_page_ids[t].push_back(page->page_id());
-                    
+
                     // Insert some data
                     std::string data = "Thread " + std::to_string(t) + " Page " + std::to_string(i);
                     page->insert_record(data.c_str(), data.size());
-                    
+
                     buffer_pool_->unpin_page(page->page_id(), true);
                 }
             }

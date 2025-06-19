@@ -120,7 +120,8 @@ struct BufferPoolStats {
 // Main buffer pool manager class
 class BufferPool {
    public:
-    explicit BufferPool(size_t pool_size, std::unique_ptr<EvictionPolicy> eviction_policy = nullptr);
+    explicit BufferPool(size_t pool_size,
+                        std::unique_ptr<EvictionPolicy> eviction_policy = nullptr);
     ~BufferPool();
 
     // Non-copyable and non-movable
@@ -141,8 +142,12 @@ class BufferPool {
     void reset();
 
     // Statistics and monitoring
-    const BufferPoolStats& stats() const { return stats_; }
-    size_t pool_size() const { return pool_size_; }
+    const BufferPoolStats& stats() const {
+        return stats_;
+    }
+    size_t pool_size() const {
+        return pool_size_;
+    }
     size_t used_frames() const;
     double utilization() const;
 
@@ -192,7 +197,8 @@ struct BufferPoolConfig {
 // Factory for creating buffer pools
 class BufferPoolFactory {
    public:
-    static std::unique_ptr<BufferPool> create(const BufferPoolConfig& config = BufferPoolConfig::default_config());
+    static std::unique_ptr<BufferPool> create(
+        const BufferPoolConfig& config = BufferPoolConfig::default_config());
     static std::unique_ptr<EvictionPolicy> create_eviction_policy(
         BufferPoolConfig::EvictionPolicy policy, size_t pool_size);
 };
