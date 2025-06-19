@@ -8,6 +8,7 @@ add_executable(lumen_tests
     test_types.cpp
     test_allocator.cpp
     test_page.cpp
+    test_buffer_pool.cpp
 )
 
 # Link libraries

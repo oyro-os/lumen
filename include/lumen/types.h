@@ -18,6 +18,7 @@ class Row;
 using byte = uint8_t;
 using PageID = uint32_t;
 using SlotID = uint16_t;
+using FrameID = uint32_t;
 using TransactionID = uint64_t;
 // Timestamp wrapper to avoid conflict with int64_t in variant
 struct Timestamp {
@@ -38,6 +39,7 @@ struct Timestamp {
 constexpr size_t kPageSize = 16384;  // 16KB pages
 constexpr size_t kCacheLineSize = 64;
 constexpr PageID kInvalidPageID = 0;
+constexpr FrameID kInvalidFrameID = UINT32_MAX;
 constexpr TransactionID kInvalidTransactionID = 0;
 
 // Value variant type that can hold any supported data type
