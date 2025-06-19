@@ -1,4 +1,5 @@
 #include <lumen/storage/buffer_pool.h>
+#include <lumen/storage/storage_engine.h>
 
 #include <algorithm>
 #include <chrono>
@@ -415,16 +416,26 @@ FrameID BufferPool::evict_frame() {
 }
 
 bool BufferPool::write_page_to_storage(const Page& page) {
-    // For now, just return true since we don't have storage engine yet
-    // TODO: Implement actual storage writing when storage engine is available
-    return true;
+    auto engine = storage_engine_.lock();
+    if (!engine) {
+        // No storage engine attached, just return true
+        return true;
+    }
+
+    // Delegate to storage engine
+    return engine->write_page_to_disk(page);
 }
 
 std::shared_ptr<Page> BufferPool::read_page_from_storage(PageID page_id) {
-    // For now, create a new page since we don't have storage engine yet
-    // TODO: Implement actual page reading when storage engine is available
-    auto unique_page = PageFactory::create_page(page_id, PageType::Data);
-    return std::shared_ptr<Page>(std::move(unique_page));
+    auto engine = storage_engine_.lock();
+    if (!engine) {
+        // No storage engine attached, create a new page
+        auto unique_page = PageFactory::create_page(page_id, PageType::Data);
+        return std::shared_ptr<Page>(std::move(unique_page));
+    }
+
+    // Delegate to storage engine
+    return engine->read_page_from_disk(page_id);
 }
 
 void BufferPool::update_frame_access(FrameID frame_id) {
