@@ -74,8 +74,10 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: lcov.info
         fail_ci_if_error: true
+        verbose: true
 
   # Security audit on Linux
   security:
@@ -119,26 +121,12 @@ jobs:
   cross-compile:
     name: Cross Compile (${{ matrix.target }})
     runs-on: ubuntu-latest
+    needs: [test]  # Only run after tests pass
+    if: startsWith(github.ref, 'refs/tags/v')  # Only run on version tags
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS targets
-          - target: x86_64-apple-darwin
-            name: macOS x64
-            use_cross: true
-          - target: aarch64-apple-darwin
-            name: macOS ARM64
-            use_cross: true
-          
-          # iOS targets
-          - target: aarch64-apple-ios
-            name: iOS ARM64
-            use_cross: true
-          - target: x86_64-apple-ios
-            name: iOS Simulator
-            use_cross: true
-          
           # Windows targets
           - target: x86_64-pc-windows-gnu
             name: Windows x64
@@ -206,11 +194,61 @@ jobs:
         path: dist/${{ matrix.target }}/*
         if-no-files-found: error
 
+  # Native Apple builds (requires macOS runner)
+  apple-builds:
+    name: Apple Builds (${{ matrix.target }})
+    runs-on: macos-latest
+    needs: [test]  # Only run after tests pass
+    if: startsWith(github.ref, 'refs/tags/v')  # Only run on version tags
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            name: macOS x64
+          - target: aarch64-apple-darwin
+            name: macOS ARM64
+          - target: aarch64-apple-ios
+            name: iOS ARM64
+          - target: x86_64-apple-ios
+            name: iOS Simulator
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.target }}
+    
+    - name: Build for target
+      run: cargo build --target ${{ matrix.target }} --release --workspace
+    
+    - name: Package artifacts
+      run: |
+        mkdir -p dist/${{ matrix.target }}
+        cp target/${{ matrix.target }}/release/liblumen_ffi.* dist/${{ matrix.target }}/ 2>/dev/null || true
+        cp target/${{ matrix.target }}/release/lumen_ffi.* dist/${{ matrix.target }}/ 2>/dev/null || true
+        cp lumen-ffi/include/lumen.h dist/${{ matrix.target }}/ 2>/dev/null || true
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumen-${{ matrix.target }}
+        path: dist/${{ matrix.target }}/*
+        if-no-files-found: error
+
   # Create release artifacts from cross-compiled binaries
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [test, cross-compile]
+    needs: [test, cross-compile, apple-builds]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     
     steps:
@@ -242,7 +280,7 @@ jobs:
   ci-summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [test, coverage, security, cross-compile]
+    needs: [test, coverage, security]
     if: always()
     
     steps:
@@ -258,10 +296,6 @@ jobs:
         fi
         if [[ "${{ needs.security.result }}" != "success" ]]; then
           echo "Security audit failed"
-          exit 1
-        fi
-        if [[ "${{ needs.cross-compile.result }}" != "success" ]]; then
-          echo "Cross-compilation failed"
           exit 1
         fi
         echo "All CI checks passed!"

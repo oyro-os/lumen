@@ -147,6 +147,7 @@ mod tests {
 
     #[test]
     fn test_result_type() {
+        #[allow(clippy::unnecessary_wraps)]
         fn might_fail() -> Result<String> {
             Ok("Success".to_string())
         }

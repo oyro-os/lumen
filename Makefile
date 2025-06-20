@@ -52,6 +52,11 @@ help:
 	@echo ""
 	@echo "$(YELLOW)CI/CD:$(NC)"
 	@echo "  make ci-test       - Run CI tests"
+	@echo "  make ci-all        - Run all CI checks locally"
+	@echo "  make ci-format-check - Check formatting (CI mode)"
+	@echo "  make ci-clippy     - Run clippy (CI mode)"
+	@echo "  make ci-coverage   - Generate coverage report"
+	@echo "  make ci-security   - Run security audit"
 	@echo "  make format        - Format code with rustfmt"
 	@echo "  make lint          - Run clippy"
 	@echo "  make check         - Check + format + lint + test"
@@ -165,9 +170,10 @@ cross-all: cross-setup
 	@echo "$(GREEN)All cross-compilation targets complete!$(NC)"
 	@echo "$(YELLOW)Output directory: $(DIST_DIR)$(NC)"
 
-# macOS targets
+# macOS targets (requires macOS host)
 macos-arm64:
 	@echo "$(GREEN)Building for macOS ARM64...$(NC)"
+	@echo "$(YELLOW)NOTE: This target requires a macOS host machine$(NC)"
 	@rustup target add aarch64-apple-darwin 2>/dev/null || true
 	@cargo build --release --target aarch64-apple-darwin $(CARGO_FLAGS)
 	@mkdir -p $(DIST_DIR)/macos/arm64
@@ -176,15 +182,17 @@ macos-arm64:
 
 macos-x86_64:
 	@echo "$(GREEN)Building for macOS x86_64...$(NC)"
+	@echo "$(YELLOW)NOTE: This target requires a macOS host machine$(NC)"
 	@rustup target add x86_64-apple-darwin 2>/dev/null || true
 	@cargo build --release --target x86_64-apple-darwin $(CARGO_FLAGS)
 	@mkdir -p $(DIST_DIR)/macos/x86_64
 	@cp target/x86_64-apple-darwin/release/liblumen_ffi.* $(DIST_DIR)/macos/x86_64/ 2>/dev/null || true
 	@echo "$(GREEN)macOS x86_64 build complete!$(NC)"
 
-# iOS targets
+# iOS targets (requires macOS host)
 ios-arm64:
 	@echo "$(GREEN)Building for iOS ARM64...$(NC)"
+	@echo "$(YELLOW)NOTE: This target requires a macOS host machine$(NC)"
 	@rustup target add aarch64-apple-ios 2>/dev/null || true
 	@cargo build --release --target aarch64-apple-ios $(CARGO_FLAGS)
 	@mkdir -p $(DIST_DIR)/ios/arm64
@@ -193,6 +201,7 @@ ios-arm64:
 
 ios-sim:
 	@echo "$(GREEN)Building for iOS Simulator...$(NC)"
+	@echo "$(YELLOW)NOTE: This target requires a macOS host machine$(NC)"
 	@rustup target add x86_64-apple-ios 2>/dev/null || true
 	@cargo build --release --target x86_64-apple-ios $(CARGO_FLAGS)
 	@mkdir -p $(DIST_DIR)/ios/simulator
@@ -224,6 +233,46 @@ ci-test:
 	@$(MAKE) check
 	@$(MAKE) test
 	@echo "$(GREEN)CI tests complete!$(NC)"
+
+# Individual CI checks (for debugging CI failures locally)
+ci-format-check:
+	@echo "$(GREEN)Checking code formatting...$(NC)"
+	@cargo fmt --all -- --check
+
+ci-clippy:
+	@echo "$(GREEN)Running clippy with CI settings...$(NC)"
+	@cargo clippy --all-targets --all-features -- -D warnings
+
+ci-check:
+	@echo "$(GREEN)Checking compilation...$(NC)"
+	@cargo check --all-targets --all-features
+
+ci-test-verbose:
+	@echo "$(GREEN)Running tests (CI mode)...$(NC)"
+	@cargo test --workspace --verbose
+
+ci-doc-test:
+	@echo "$(GREEN)Running doc tests...$(NC)"
+	@cargo test --doc --all-features
+
+ci-coverage:
+	@echo "$(GREEN)Generating coverage report (requires cargo-llvm-cov)...$(NC)"
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install cargo-llvm-cov
+	@cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+ci-security:
+	@echo "$(GREEN)Running security audit (requires cargo-audit)...$(NC)"
+	@command -v cargo-audit >/dev/null 2>&1 || cargo install cargo-audit
+	@cargo audit
+
+ci-all:
+	@echo "$(GREEN)Running all CI checks locally...$(NC)"
+	@$(MAKE) ci-format-check
+	@$(MAKE) ci-clippy
+	@$(MAKE) ci-check
+	@$(MAKE) ci-test-verbose
+	@$(MAKE) ci-doc-test
+	@echo "$(GREEN)All CI checks passed locally!$(NC)"
 
 format:
 	@echo "$(GREEN)Formatting code...$(NC)"
@@ -283,4 +332,5 @@ c: clean
 .PHONY: help build release test test-verbose bench doc coverage \
         macos macos-universal ios android linux windows \
         cross-setup cross-all macos-arm64 macos-x86_64 ios-arm64 ios-sim windows-x64 linux-arm64 \
-        ci-test format lint check install package clean distclean t b r c
+        ci-test ci-all ci-format-check ci-clippy ci-check ci-test-verbose ci-doc-test ci-coverage ci-security \
+        format format-check lint check install package clean distclean t b r c

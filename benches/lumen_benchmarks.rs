@@ -22,21 +22,13 @@ fn benchmark_error_creation() {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("version", |b| {
-        b.iter(|| benchmark_version())
-    });
+    c.bench_function("version", |b| b.iter(benchmark_version));
 
-    c.bench_function("logging_init", |b| {
-        b.iter(|| benchmark_logging_init())
-    });
+    c.bench_function("logging_init", |b| b.iter(benchmark_logging_init));
 
-    c.bench_function("timer", |b| {
-        b.iter(|| benchmark_timer())
-    });
+    c.bench_function("timer", |b| b.iter(benchmark_timer));
 
-    c.bench_function("error_creation", |b| {
-        b.iter(|| benchmark_error_creation())
-    });
+    c.bench_function("error_creation", |b| b.iter(benchmark_error_creation));
 }
 
 criterion_group!(benches, criterion_benchmark);

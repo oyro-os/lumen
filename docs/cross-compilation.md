@@ -157,25 +157,25 @@ linker = "x86_64-w64-mingw32-gcc"
 ar = "x86_64-w64-mingw32-ar"
 ```
 
-## macOS Cross-Compilation from Linux
+## Platform-Specific Limitations
 
-Cross-compiling for macOS from Linux requires additional setup:
+### Apple Platforms (macOS/iOS)
 
-### Option 1: OSXCross (Recommended)
+**Important**: Apple targets (macOS and iOS) cannot be cross-compiled from Linux using standard tools due to:
+- Proprietary SDK requirements
+- Code signing requirements
+- Lack of Docker images for `cross` tool
 
-1. Install osxcross: https://github.com/tpoechtrager/osxcross
-2. Download macOS SDK (requires Apple Developer account)
-3. Build osxcross toolchain
-4. Update `.cargo/config.toml` with correct paths
+**Solutions**:
+1. **Use macOS CI runners**: GitHub Actions provides macOS runners for building Apple targets
+2. **Local development**: Build on actual macOS hardware
+3. **OSXCross**: Advanced users can set up osxcross, but it requires:
+   - Apple Developer account
+   - Manual SDK extraction
+   - Complex setup process
+   - May violate Apple's license terms
 
-### Option 2: Docker
-
-```bash
-# Use pre-built cross-compilation Docker image
-docker run --rm -v $(pwd):/workspace \
-  messense/rust-musl-cross:aarch64-apple-darwin \
-  cargo build --release --target aarch64-apple-darwin
-```
+**Recommendation**: Use GitHub Actions with macOS runners for Apple builds in CI/CD.
 
 ## Troubleshooting
 

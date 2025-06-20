@@ -84,9 +84,7 @@ impl MemoryTracker {
     pub fn start<S: Into<String>>(name: S) -> Self {
         let name = name.into();
         let initial_memory = get_memory_usage();
-        println!(
-            "Memory tracker '{name}' started at {initial_memory} bytes"
-        );
+        println!("Memory tracker '{name}' started at {initial_memory} bytes");
 
         Self {
             initial_memory,
@@ -239,7 +237,7 @@ mod tests {
 
         // We can't assert exact values due to allocator behavior,
         // but we can test that it doesn't panic
-        println!("Memory delta: {} bytes", delta);
+        println!("Memory delta: {delta} bytes");
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! This module provides utilities for testing multiple components together
 //! and ensuring they work correctly as a system.
 
-use lumen::common::test_utils::{TempDir, init_test_logging};
+use lumen::common::test_utils::{init_test_logging, TempDir};
 use lumen::common::{Error, Result};
 use std::path::Path;
 
@@ -19,14 +19,11 @@ impl TestEnvironment {
     /// Create a new test environment
     pub fn new() -> Result<Self> {
         init_test_logging();
-        
+
         let temp_dir = TempDir::new()?;
         let db_path = temp_dir.path().join("test.lumen");
-        
-        Ok(Self {
-            temp_dir,
-            db_path,
-        })
+
+        Ok(Self { temp_dir, db_path })
     }
 
     /// Get the database path
@@ -52,7 +49,7 @@ impl TestEnvironment {
         let file_path = self.temp_dir.path().join(name);
         let content = std::fs::read(&file_path)
             .map_err(|e| Error::io(format!("Failed to read test file: {}", e)))?;
-        
+
         if content != expected {
             return Err(Error::invalid_input(format!(
                 "File content mismatch. Expected {} bytes, got {} bytes",
@@ -60,7 +57,7 @@ impl TestEnvironment {
                 content.len()
             )));
         }
-        
+
         Ok(())
     }
 }
@@ -82,7 +79,7 @@ impl ErrorTester {
     {
         let result = func();
         assert!(result.is_err(), "Expected error, got success");
-        
+
         let error = result.unwrap_err();
         assert!(
             expected_predicate(&error),
@@ -143,11 +140,11 @@ mod tests {
     #[test]
     fn test_environment_creation() {
         let env = TestEnvironment::new().expect("Should create test environment");
-        
+
         // Test that temp directory exists
         assert!(env.temp_path().exists());
         assert!(env.temp_path().is_dir());
-        
+
         // Test that db path is set correctly
         assert!(env.db_path().parent().unwrap().exists());
         assert_eq!(env.db_path().file_name().unwrap(), "test.lumen");
@@ -156,13 +153,14 @@ mod tests {
     #[test]
     fn test_file_operations() {
         let env = TestEnvironment::new().expect("Should create test environment");
-        
+
         let test_content = b"Hello, Lumen!";
-        let file_path = env.create_test_file("test.txt", test_content)
+        let file_path = env
+            .create_test_file("test.txt", test_content)
             .expect("Should create test file");
-        
+
         assert!(file_path.exists());
-        
+
         env.verify_file_content("test.txt", test_content)
             .expect("Should verify file content");
     }
@@ -170,9 +168,7 @@ mod tests {
     #[test]
     fn test_error_tester() {
         // Test IO error detection
-        ErrorTester::assert_io_error(|| -> Result<()> {
-            Err(Error::io("Test IO error"))
-        });
+        ErrorTester::assert_io_error(|| -> Result<()> { Err(Error::io("Test IO error")) });
 
         // Test corruption error detection
         ErrorTester::assert_corruption_error(|| -> Result<()> {
@@ -183,11 +179,13 @@ mod tests {
     #[test]
     fn test_component_tester() {
         let tester = ComponentTester::new().expect("Should create component tester");
-        
-        tester.test_interaction(|env| {
-            // Test that we can use the environment
-            assert!(env.temp_path().exists());
-            Ok(())
-        }).expect("Should run interaction test");
+
+        tester
+            .test_interaction(|env| {
+                // Test that we can use the environment
+                assert!(env.temp_path().exists());
+                Ok(())
+            })
+            .expect("Should run interaction test");
     }
 }
