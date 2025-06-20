@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(lumen VERSION 1.0.0 LANGUAGES CXX)
+project(lumen VERSION 0.1.0 LANGUAGES CXX)
 
 # Options
 option(BUILD_TESTS "Build tests" ON)
@@ -29,32 +29,37 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Platform)
 include(CompilerFlags)
 include(Dependencies)
+include(Version)
 
 # Source files (starting with minimal C API)
 set(LUMEN_SOURCES
     src/lumen_c_api.cpp
     src/types.cpp
-    src/memory/allocator.cpp
-    src/memory/memory_manager.cpp
-    src/storage/page.cpp
-    src/storage/buffer_pool.cpp
-    src/storage/storage_engine.cpp
-    src/storage/single_file_storage.cpp
-    src/index/btree.cpp
-    src/index/btree_index.cpp
+    src/common/status.cpp
+    src/common/logging.cpp
+    # src/memory/allocator.cpp
+    # src/memory/memory_manager.cpp
+    # src/storage/page.cpp
+    # src/storage/buffer_pool.cpp
+    # src/storage/storage_engine.cpp
+    # src/storage/single_file_storage.cpp
+    # src/index/btree.cpp
+    # src/index/btree_index.cpp
 )
 
 # Public headers
 set(LUMEN_PUBLIC_HEADERS
     include/lumen/lumen.h
-    include/lumen/types.h
-    include/lumen/memory/allocator.h
-    include/lumen/memory/memory_manager.h
-    include/lumen/storage/page.h
-    include/lumen/storage/buffer_pool.h
-    include/lumen/storage/storage_engine.h
-    include/lumen/index/btree.h
-    include/lumen/index/btree_index.h
+    include/lumen/common/status.h
+    include/lumen/common/logging.h
+    # include/lumen/types.h
+    # include/lumen/memory/allocator.h
+    # include/lumen/memory/memory_manager.h
+    # include/lumen/storage/page.h
+    # include/lumen/storage/buffer_pool.h
+    # include/lumen/storage/storage_engine.h
+    # include/lumen/index/btree.h
+    # include/lumen/index/btree_index.h
 )
 
 # Include directories

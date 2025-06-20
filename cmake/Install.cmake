@@ -1,24 +1,76 @@
 # Installation rules
 
-# Install libraries
+# Installation directories
+include(GNUInstallDirs)
+
+# Install libraries with export
 if(BUILD_STATIC)
     install(TARGETS lumen_static
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
+        EXPORT LumenTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 endif()
 
 if(BUILD_SHARED_RELEASE)
     install(TARGETS lumen_shared_release
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
+        EXPORT LumenTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 endif()
 
 # Install public headers
 install(FILES ${LUMEN_PUBLIC_HEADERS}
-    DESTINATION include/lumen
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lumen
+)
+
+# Install generated version header
+install(FILES ${CMAKE_BINARY_DIR}/include/lumen/version.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lumen
+)
+
+# Install CMake config files
+install(EXPORT LumenTargets
+    FILE LumenTargets.cmake
+    NAMESPACE Lumen::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Lumen
+)
+
+# Create and install package config file
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    ${CMAKE_SOURCE_DIR}/cmake/LumenConfig.cmake.in
+    ${CMAKE_BINARY_DIR}/LumenConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Lumen
+)
+
+write_basic_package_version_file(
+    ${CMAKE_BINARY_DIR}/LumenConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_BINARY_DIR}/LumenConfig.cmake
+    ${CMAKE_BINARY_DIR}/LumenConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Lumen
+)
+
+# Install pkg-config file
+configure_file(
+    ${CMAKE_SOURCE_DIR}/cmake/lumen.pc.in
+    ${CMAKE_BINARY_DIR}/lumen.pc
+    @ONLY
+)
+
+install(FILES ${CMAKE_BINARY_DIR}/lumen.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
 # Generate unified C header for distribution

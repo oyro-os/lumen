@@ -1,0 +1,30 @@
+@PACKAGE_INIT@
+
+# Lumen Database CMake Configuration File
+
+include(CMakeFindDependencyMacro)
+
+# Find dependencies if needed
+# find_dependency(SomePackage)
+
+# Include the targets file
+include("${CMAKE_CURRENT_LIST_DIR}/LumenTargets.cmake")
+
+# Provide version information
+set(Lumen_VERSION @PROJECT_VERSION@)
+set(Lumen_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
+set(Lumen_VERSION_MINOR @PROJECT_VERSION_MINOR@)
+set(Lumen_VERSION_PATCH @PROJECT_VERSION_PATCH@)
+
+# Check required components
+check_required_components(Lumen)
+
+# For backwards compatibility
+set(LUMEN_FOUND TRUE)
+set(LUMEN_INCLUDE_DIRS ${Lumen_INCLUDE_DIRS})
+set(LUMEN_LIBRARIES Lumen::lumen_static)
+
+# Print configuration message
+if(NOT Lumen_FIND_QUIETLY)
+    message(STATUS "Found Lumen: ${CMAKE_CURRENT_LIST_DIR} (found version \"${Lumen_VERSION}\")")
+endif()
