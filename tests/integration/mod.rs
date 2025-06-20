@@ -40,7 +40,7 @@ impl TestEnvironment {
     pub fn create_test_file(&self, name: &str, content: &[u8]) -> Result<std::path::PathBuf> {
         let file_path = self.temp_dir.path().join(name);
         std::fs::write(&file_path, content)
-            .map_err(|e| Error::io(format!("Failed to create test file: {}", e)))?;
+            .map_err(|e| Error::io(format!("Failed to create test file: {e}")))?;
         Ok(file_path)
     }
 
@@ -48,7 +48,7 @@ impl TestEnvironment {
     pub fn verify_file_content(&self, name: &str, expected: &[u8]) -> Result<()> {
         let file_path = self.temp_dir.path().join(name);
         let content = std::fs::read(&file_path)
-            .map_err(|e| Error::io(format!("Failed to read test file: {}", e)))?;
+            .map_err(|e| Error::io(format!("Failed to read test file: {e}")))?;
 
         if content != expected {
             return Err(Error::invalid_input(format!(
@@ -83,8 +83,7 @@ impl ErrorTester {
         let error = result.unwrap_err();
         assert!(
             expected_predicate(&error),
-            "Error type mismatch. Got: {:?}",
-            error
+            "Error type mismatch. Got: {error:?}"
         );
     }
 

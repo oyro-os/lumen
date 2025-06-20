@@ -71,7 +71,7 @@ pub fn init_with_level(level: log::LevelFilter) {
             .filter_level(level)
             .init();
 
-        log::info!("Lumen logging system initialized with level: {:?}", level);
+        log::info!("Lumen logging system initialized with level: {level:?}");
     });
 }
 

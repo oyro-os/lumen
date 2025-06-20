@@ -103,8 +103,8 @@ impl MemoryTracker {
     pub fn stop(self) -> isize {
         let delta = self.current_delta();
         println!(
-            "Memory tracker '{}' ended with delta: {} bytes",
-            self.name, delta
+            "Memory tracker '{}' ended with delta: {delta} bytes",
+            self.name
         );
         delta
     }

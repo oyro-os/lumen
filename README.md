@@ -1,5 +1,10 @@
 # Lumen Database
 
+[![CI](https://github.com/rock-ai/lumen/actions/workflows/ci.yml/badge.svg)](https://github.com/rock-ai/lumen/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](https://github.com/rock-ai/lumen/actions)
+[![Rust](https://img.shields.io/badge/rust-1.84%2B-blue.svg)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE)
+
 Lumen is a high-performance embedded database written in Rust, designed for extreme efficiency and reliability.
 
 ## Key Features

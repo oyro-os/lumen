@@ -89,9 +89,12 @@ test-verbose:
 
 coverage:
 	@echo "$(GREEN)Generating coverage report...$(NC)"
-	@cargo install cargo-tarpaulin 2>/dev/null || true
-	@cargo tarpaulin --out Html --output-dir target/coverage
-	@echo "$(GREEN)Coverage report: target/coverage/tarpaulin-report.html$(NC)"
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install cargo-llvm-cov
+	@cargo llvm-cov --all-features --workspace --html --output-dir target/coverage
+	@cargo llvm-cov --all-features --workspace --text
+	@echo ""
+	@echo "$(GREEN)HTML report: target/coverage/html/index.html$(NC)"
+	@echo "$(GREEN)Text report shown above$(NC)"
 
 bench:
 	@echo "$(GREEN)Running benchmarks...$(NC)"
@@ -259,6 +262,13 @@ ci-coverage:
 	@echo "$(GREEN)Generating coverage report (requires cargo-llvm-cov)...$(NC)"
 	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install cargo-llvm-cov
 	@cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+	@cargo llvm-cov --all-features --workspace --text --output-path coverage.txt
+	@echo "$(GREEN)Coverage report saved to coverage.txt$(NC)"
+	@echo ""
+	@cat coverage.txt
+	@echo ""
+	@echo "$(GREEN)Coverage summary:$(NC)"
+	@grep "TOTAL" coverage.txt || echo "No total coverage found"
 
 ci-security:
 	@echo "$(GREEN)Running security audit (requires cargo-audit)...$(NC)"
