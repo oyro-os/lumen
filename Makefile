@@ -1,4 +1,4 @@
-# Lumen Database Makefile
+# Lumen Database Makefile - Rust Edition
 # Shortcuts for common development tasks
 
 # Default target
@@ -6,11 +6,11 @@
 
 # Variables
 ROOT_DIR := $(shell pwd)
-BUILD_DIR := build
+TARGET_DIR := target
 DIST_DIR := dist
 CORES := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-CMAKE := cmake
-CTEST := ctest
+CARGO := cargo
+CARGO_FLAGS := --jobs $(CORES)
 
 # Colors for output
 GREEN := \033[0;32m
@@ -23,13 +23,15 @@ help:
 	@echo "$(GREEN)Lumen Database - Make Targets$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Development:$(NC)"
-	@echo "  make build         - Debug build with tests"
+	@echo "  make build         - Debug build"
 	@echo "  make release       - Release build for distribution"
 	@echo "  make test          - Run all tests"
 	@echo "  make test-verbose  - Run tests with detailed output"
+	@echo "  make bench         - Run benchmarks"
+	@echo "  make doc           - Generate documentation"
 	@echo "  make coverage      - Generate coverage report"
 	@echo "  make clean         - Clean build directory"
-	@echo "  make distclean     - Clean everything (build + dist)"
+	@echo "  make distclean     - Clean everything"
 	@echo ""
 	@echo "$(YELLOW)Platform Builds:$(NC)"
 	@echo "  make macos         - Build for macOS (current arch)"
@@ -46,247 +48,143 @@ help:
 	@echo ""
 	@echo "$(YELLOW)CI/CD:$(NC)"
 	@echo "  make ci-test       - Run CI tests"
-	@echo "  make format        - Format code with clang-format"
-	@echo "  make lint          - Run clang-tidy"
-	@echo "  make check         - Format + lint + test"
+	@echo "  make format        - Format code with rustfmt"
+	@echo "  make lint          - Run clippy"
+	@echo "  make check         - Check + format + lint + test"
 	@echo ""
 	@echo "$(YELLOW)Utilities:$(NC)"
-	@echo "  make benchmark     - Run benchmarks"
-	@echo "  make install       - Install libraries"
+	@echo "  make install       - Install binary"
 	@echo "  make package       - Create distribution package"
 
 # Development targets
-build: clean
+build:
 	@echo "$(GREEN)Building Lumen (Debug)...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
+	@$(CARGO) build $(CARGO_FLAGS)
 	@echo "$(GREEN)Build complete!$(NC)"
 
-release: clean
+release:
 	@echo "$(GREEN)Building Lumen (Release)...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
-	@echo "$(GREEN)Release build complete! Check dist/ directory$(NC)"
+	@$(CARGO) build --release $(CARGO_FLAGS)
+	@mkdir -p $(DIST_DIR)
+	@cp target/release/liblumen.* $(DIST_DIR)/ 2>/dev/null || true
+	@echo "$(GREEN)Release build complete! Check target/release/$(NC)"
 
-test: build
+test:
 	@echo "$(GREEN)Running tests...$(NC)"
-	@cd $(BUILD_DIR) && ./bin/lumen_tests
+	@$(CARGO) test $(CARGO_FLAGS)
 	@echo "$(GREEN)All tests passed!$(NC)"
 
-test-verbose: build
+test-verbose:
 	@echo "$(GREEN)Running tests (verbose)...$(NC)"
-	@cd $(BUILD_DIR) && ./bin/lumen_tests --gtest_color=yes --gtest_output=json:test_results.json
+	@$(CARGO) test $(CARGO_FLAGS) -- --nocapture --test-threads=1
 
-coverage: clean
-	@echo "$(GREEN)Building with coverage...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DCOVERAGE=ON
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
-	@cd $(BUILD_DIR) && $(MAKE) coverage
-	@echo "$(GREEN)Coverage report: $(BUILD_DIR)/coverage/index.html$(NC)"
+coverage:
+	@echo "$(GREEN)Generating coverage report...$(NC)"
+	@cargo install cargo-tarpaulin 2>/dev/null || true
+	@cargo tarpaulin --out Html --output-dir target/coverage
+	@echo "$(GREEN)Coverage report: target/coverage/tarpaulin-report.html$(NC)"
 
-benchmark: build
+bench:
 	@echo "$(GREEN)Running benchmarks...$(NC)"
-	@cd $(BUILD_DIR) && ./bin/lumen_benchmarks
+	@$(CARGO) bench $(CARGO_FLAGS)
+
+doc:
+	@echo "$(GREEN)Generating documentation...$(NC)"
+	@$(CARGO) doc --no-deps --open
 
 # Platform-specific builds
-macos: macos-$(shell uname -m)
+macos:
+	@echo "$(GREEN)Building for macOS (native)...$(NC)"
+	@$(CARGO) build --release $(CARGO_FLAGS)
 
-macos-arm64: clean
-	@echo "$(GREEN)Building for macOS ARM64...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_OSX_ARCHITECTURES=arm64 -DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
-	@echo "$(GREEN)macOS ARM64 build complete!$(NC)"
+macos-universal:
+	@echo "$(GREEN)Building universal macOS binary...$(NC)"
+	@$(CARGO) build --release --target aarch64-apple-darwin
+	@$(CARGO) build --release --target x86_64-apple-darwin
+	@lipo -create target/aarch64-apple-darwin/release/liblumen.dylib \
+		target/x86_64-apple-darwin/release/liblumen.dylib \
+		-output target/release/liblumen-universal.dylib
 
-macos-x86_64: clean
-	@echo "$(GREEN)Building for macOS x86_64...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_OSX_ARCHITECTURES=x86_64 -DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
-	@echo "$(GREEN)macOS x86_64 build complete!$(NC)"
+ios:
+	@echo "$(GREEN)Building for iOS...$(NC)"
+	@cargo install cargo-lipo 2>/dev/null || true
+	@rustup target add aarch64-apple-ios x86_64-apple-ios 2>/dev/null || true
+	@cargo lipo --release
+	@echo "$(GREEN)iOS build complete!$(NC)"
 
-ios: ios-arm64
-
-ios-arm64: clean
-	@echo "$(GREEN)Building for iOS ARM64...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/iOS.cmake \
-		-DIOS_PLATFORM=OS -DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
-	@echo "$(GREEN)iOS ARM64 build complete!$(NC)"
-
-ios-sim: clean
-	@echo "$(GREEN)Building for iOS Simulator...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/iOS.cmake \
-		-DIOS_PLATFORM=SIMULATOR -DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
-	@echo "$(GREEN)iOS Simulator build complete!$(NC)"
-
-android: clean
+android:
 	@echo "$(GREEN)Building for Android...$(NC)"
-	@if [ -z "$$ANDROID_NDK_HOME" ] && [ -z "$$ANDROID_NDK_ROOT" ]; then \
-		echo "$(RED)Error: ANDROID_NDK_HOME or ANDROID_NDK_ROOT not set$(NC)"; \
-		exit 1; \
-	fi
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/Android.cmake \
-		-DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
+	@cargo install cargo-ndk 2>/dev/null || true
+	@rustup target add aarch64-linux-android armv7-linux-androideabi 2>/dev/null || true
+	@cargo ndk -t armeabi-v7a -t arm64-v8a -o jniLibs build --release
 	@echo "$(GREEN)Android build complete!$(NC)"
 
-linux: clean
+linux:
 	@echo "$(GREEN)Building for Linux...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. \
-		-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
+	@$(CARGO) build --release $(CARGO_FLAGS)
 	@echo "$(GREEN)Linux build complete!$(NC)"
 
-windows: windows-cross
+windows:
+	@echo "$(GREEN)Building for Windows...$(NC)"
+	@rustup target add x86_64-pc-windows-gnu 2>/dev/null || true
+	@cargo build --release --target x86_64-pc-windows-gnu
+	@echo "$(GREEN)Windows build complete!$(NC)"
 
-# Detect Visual Studio version for Windows builds
-ifeq ($(OS),Windows_NT)
-    VS_VERSION := $(shell cmake --help | grep -o "Visual Studio [0-9][0-9] [0-9][0-9][0-9][0-9]" | head -1 || echo "Visual Studio 16 2019")
-else
-    VS_VERSION := Visual Studio 16 2019
-endif
-
-windows-debug: clean
-	@echo "$(GREEN)Building for Windows (Debug) using $(VS_VERSION)...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake .. -G "$(VS_VERSION)" -A x64 -DBUILD_TESTS=ON
-	@cd $(BUILD_DIR) && cmake --build . --config Debug --parallel
-	@echo "$(GREEN)Windows Debug build complete!$(NC)"
-
-windows-release: clean
-	@echo "$(GREEN)Building for Windows (Release) using $(VS_VERSION)...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake .. -G "$(VS_VERSION)" -A x64 -DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && cmake --build . --config Release --parallel
-	@echo "$(GREEN)Windows Release build complete!$(NC)"
-
-windows-test: windows-debug
-	@echo "$(GREEN)Running Windows tests...$(NC)"
-	@cd $(BUILD_DIR) && ./bin/Debug/lumen_tests.exe
-
-# Cross-compilation for Windows from Unix
-windows-cross: clean
-	@echo "$(GREEN)Cross-compiling for Windows x64...$(NC)"
-	@if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then \
-		echo "$(RED)MinGW-w64 not found. Install with:$(NC)"; \
-		echo "  Ubuntu/Debian: sudo apt-get install mingw-w64"; \
-		echo "  macOS: brew install mingw-w64"; \
-		echo "  Arch: sudo pacman -S mingw-w64"; \
-		exit 1; \
-	fi
-	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/Windows.cmake \
-		-DBUILD_TESTS=OFF
-	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
-	@echo "$(GREEN)Windows cross-compilation complete!$(NC)"
 
 # CI/CD targets
 ci-test:
 	@echo "$(GREEN)Running CI tests...$(NC)"
-	@$(MAKE) clean
-	@$(MAKE) build
+	@$(MAKE) check
 	@$(MAKE) test
-	@$(MAKE) lint || true
 	@echo "$(GREEN)CI tests complete!$(NC)"
 
 format:
 	@echo "$(GREEN)Formatting code...$(NC)"
-	@if command -v clang-format >/dev/null 2>&1; then \
-		find $(ROOT_DIR)/src $(ROOT_DIR)/include $(ROOT_DIR)/tests -name "*.cpp" -o -name "*.h" 2>/dev/null | xargs -r clang-format -i; \
-		echo "$(GREEN)Code formatted!$(NC)"; \
-	else \
-		echo "$(YELLOW)clang-format not found. Install with: brew install clang-format$(NC)"; \
-		exit 1; \
-	fi
+	@$(CARGO) fmt
+	@echo "$(GREEN)Code formatted!$(NC)"
 
 format-check:
 	@echo "$(GREEN)Checking code format...$(NC)"
-	@if command -v clang-format >/dev/null 2>&1; then \
-		find $(ROOT_DIR)/src $(ROOT_DIR)/include $(ROOT_DIR)/tests -name "*.cpp" -o -name "*.h" 2>/dev/null | xargs -r clang-format --dry-run --Werror; \
-		echo "$(GREEN)Code format check passed!$(NC)"; \
-	else \
-		echo "$(YELLOW)clang-format not found. Install with: brew install clang-format$(NC)"; \
-		exit 1; \
-	fi
+	@$(CARGO) fmt -- --check
+	@echo "$(GREEN)Code format check passed!$(NC)"
 
 lint:
-	@echo "$(GREEN)Running clang-tidy...$(NC)"
-	@if command -v clang-tidy >/dev/null 2>&1; then \
-		if [ -f "$(BUILD_DIR)/compile_commands.json" ]; then \
-			echo "$(YELLOW)Note: clang-tidy may show system header errors on macOS. These can be ignored.$(NC)"; \
-			find src -name "*.cpp" 2>/dev/null | while read file; do \
-				if [ -f "$$file" ]; then \
-					echo "  Checking $$file..."; \
-					clang-tidy "$$file" -p $(BUILD_DIR) \
-						--config-file=$(ROOT_DIR)/.clang-tidy \
-						--extra-arg=-Wno-unknown-warning-option \
-						--extra-arg=-Wno-unused-command-line-argument \
-						2>&1 | \
-						grep -E "(warning:|error:)" | \
-						grep -v "error: .* file not found" | \
-						grep -v "error: unknown key" | \
-						grep -v "error: use of undeclared identifier" | \
-						grep -v "error: unknown type name" | \
-						grep -v "error: no member named" | \
-						grep -v "error: reference to unresolved" | \
-						grep -v "Error while processing" | \
-						grep -v "Error parsing" | \
-						grep -v "errors generated" | \
-						grep -v "clang-diagnostic-error" || true; \
-				fi; \
-			done; \
-			echo "$(GREEN)Lint check complete!$(NC)"; \
-		else \
-			echo "$(YELLOW)No compilation database found. Run 'make build' first.$(NC)"; \
-			exit 1; \
-		fi \
-	else \
-		echo "$(YELLOW)clang-tidy not found. Install with: brew install llvm$(NC)"; \
-		echo "$(YELLOW)Skipping lint check$(NC)"; \
-	fi
+	@echo "$(GREEN)Running clippy...$(NC)"
+	@$(CARGO) clippy -- -D warnings
+	@echo "$(GREEN)Lint check complete!$(NC)"
 
-check: format lint test
+check:
+	@echo "$(GREEN)Running cargo check...$(NC)"
+	@$(CARGO) check
+	@$(MAKE) format
+	@$(MAKE) lint
+	@$(MAKE) test
 	@echo "$(GREEN)All checks passed!$(NC)"
 
 # Installation
 install: release
 	@echo "$(GREEN)Installing Lumen...$(NC)"
-	@cd $(BUILD_DIR) && $(MAKE) install
+	@$(CARGO) install --path .
 	@echo "$(GREEN)Installation complete!$(NC)"
 
 package: release
 	@echo "$(GREEN)Creating package...$(NC)"
-	@cd $(BUILD_DIR) && $(MAKE) package
-	@echo "$(GREEN)Package created in $(BUILD_DIR)$(NC)"
+	@mkdir -p $(DIST_DIR)
+	@tar czf $(DIST_DIR)/lumen-$(shell cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version').tar.gz \
+		-C target/release \
+		liblumen.a liblumen.so liblumen.dylib 2>/dev/null || true
+	@echo "$(GREEN)Package created in $(DIST_DIR)$(NC)"
 
 # Cleaning
 clean:
-	@echo "$(YELLOW)Cleaning build directory...$(NC)"
-	@rm -rf $(BUILD_DIR)
+	@echo "$(YELLOW)Cleaning build artifacts...$(NC)"
+	@$(CARGO) clean
 
 distclean: clean
 	@echo "$(YELLOW)Cleaning everything...$(NC)"
 	@rm -rf $(DIST_DIR)
-	@rm -rf third_party
-	@find . -name "*.o" -delete
-	@find . -name "*.a" -delete
-	@find . -name "*.so" -delete
-	@find . -name "*.dylib" -delete
+	@rm -rf $(TARGET_DIR)
+	@rm -f Cargo.lock
 	@echo "$(GREEN)Clean complete!$(NC)"
 
 # Quick shortcuts
@@ -295,7 +193,6 @@ b: build
 r: release
 c: clean
 
-.PHONY: help build release test test-verbose coverage benchmark \
-        macos macos-arm64 macos-x86_64 ios ios-arm64 ios-sim \
-        android linux windows windows-debug windows-release windows-test \
+.PHONY: help build release test test-verbose bench doc coverage \
+        macos macos-universal ios android linux windows \
         ci-test format lint check install package clean distclean t b r c

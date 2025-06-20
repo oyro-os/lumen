@@ -1,0 +1,70 @@
+[package]
+name = "lumen"
+version = "0.1.0"
+edition = "2021"
+authors = ["Lumen Contributors"]
+description = "High-performance embedded database with zero-failure tolerance"
+repository = "https://github.com/yourusername/lumen"
+license = "MIT OR Apache-2.0"
+keywords = ["database", "embedded", "btree", "storage"]
+categories = ["database", "data-structures"]
+
+[lib]
+name = "lumen"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[dependencies]
+# Core dependencies
+thiserror = "1.0"
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.11"
+
+# Storage and I/O
+memmap2 = "0.9"
+crc32fast = "1.4"
+bytemuck = "1.14"
+
+# Concurrency
+parking_lot = "0.12"
+crossbeam = "0.8"
+
+# Serialization
+bincode = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+# Testing
+criterion = "0.5"
+tempfile = "3.8"
+proptest = "1.4"
+pretty_assertions = "1.4"
+
+# Benchmarking
+rand = "0.8"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+# Benchmarks will be added as we implement features
+
+[workspace]
+members = []
+
+[features]
+default = []
+# Enable SIMD optimizations
+simd = []
+# Enable async I/O support
+async = []
+# Enable additional debugging features
+debug-assertions = []

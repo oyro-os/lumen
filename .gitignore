@@ -1,10 +1,22 @@
-# Build directories
+# Rust
+/target/
+/dist/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# C++ artifacts (removed)
 build/
 cmake-build-*/
-out/
-
-# Dependencies
 third_party/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
 
 # IDE
 .claude/
@@ -15,29 +27,17 @@ third_party/
 *~
 .DS_Store
 
-# Compiled files
-*.o
-*.obj
-*.a
-*.lib
-*.so
-*.dylib
-*.dll
-*.exe
-
 # Test coverage
-*.gcda
-*.gcno
-*.gcov
-coverage/
-coverage.info
+*.profraw
+*.profdata
+/target/coverage/
+tarpaulin-report.html
 
-# Debug files
-*.dSYM/
-*.pdb
+# Documentation
+/target/doc/
 
-# Distribution files
-dist/
+# Benchmarks
+/target/criterion/
 
 # Database files (except test fixtures)
 *.lumen
