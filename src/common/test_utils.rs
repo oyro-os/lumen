@@ -73,52 +73,6 @@ impl Drop for TempDir {
     }
 }
 
-/// Memory usage tracker for tests
-pub struct MemoryTracker {
-    initial_memory: usize,
-    name: String,
-}
-
-impl MemoryTracker {
-    /// Start tracking memory usage
-    pub fn start<S: Into<String>>(name: S) -> Self {
-        let name = name.into();
-        let initial_memory = get_memory_usage();
-        println!("Memory tracker '{name}' started at {initial_memory} bytes");
-
-        Self {
-            initial_memory,
-            name,
-        }
-    }
-
-    /// Get current memory delta
-    #[allow(clippy::cast_possible_wrap)]
-    pub fn current_delta(&self) -> isize {
-        let current = get_memory_usage();
-        current as isize - self.initial_memory as isize
-    }
-
-    /// Stop tracking and return memory delta
-    pub fn stop(self) -> isize {
-        let delta = self.current_delta();
-        println!(
-            "Memory tracker '{}' ended with delta: {delta} bytes",
-            self.name
-        );
-        delta
-    }
-}
-
-fn get_memory_usage() -> usize {
-    // Simple memory usage approximation
-    // In a real implementation, we'd use platform-specific APIs
-    use std::alloc::System;
-
-    // This is a simplified version - in practice we'd track allocations
-    std::mem::size_of::<System>() // Placeholder
-}
-
 /// Performance assertion helper
 pub struct PerformanceAssertion {
     max_duration: std::time::Duration,
@@ -225,19 +179,6 @@ mod tests {
         assert_eq!(read_data, data);
 
         // Directory will be cleaned up when temp_dir is dropped
-    }
-
-    #[test]
-    fn test_memory_tracker() {
-        init_test_logging();
-
-        let tracker = MemoryTracker::start("test");
-        let _data = vec![0u8; 1024]; // Allocate some memory
-        let delta = tracker.stop();
-
-        // We can't assert exact values due to allocator behavior,
-        // but we can test that it doesn't panic
-        println!("Memory delta: {delta} bytes");
     }
 
     #[test]
