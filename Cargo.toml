@@ -9,6 +9,10 @@ license = "MIT OR Apache-2.0"
 keywords = ["database", "embedded", "btree", "storage"]
 categories = ["database", "data-structures"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 name = "lumen"
 crate-type = ["lib", "cdylib", "staticlib"]
@@ -19,6 +23,7 @@ thiserror = "1.0"
 anyhow = "1.0"
 log = "0.4"
 env_logger = "0.11"
+chrono = { version = "0.4", features = ["serde"] }
 
 # Storage and I/O
 memmap2 = "0.9"
@@ -33,12 +38,16 @@ crossbeam = "0.8"
 bincode = "1.3"
 serde = { version = "1.0", features = ["derive"] }
 
+# Testing utilities (always available for integration tests)
+uuid = { version = "1.6", features = ["v4"] }
+
 [dev-dependencies]
 # Testing
 criterion = "0.5"
 tempfile = "3.8"
 proptest = "1.4"
 pretty_assertions = "1.4"
+lumen-ffi = { path = "lumen-ffi" }
 
 # Benchmarking
 rand = "0.8"
@@ -55,10 +64,12 @@ opt-level = 3
 lto = true
 codegen-units = 1
 
-# Benchmarks will be added as we implement features
+[[bench]]
+name = "lumen_benchmarks"
+harness = false
 
 [workspace]
-members = []
+members = ["lumen-ffi"]
 
 [features]
 default = []

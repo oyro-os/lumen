@@ -1,0 +1,59 @@
+# Cargo configuration for cross-compilation
+
+# Windows cross-compilation from Linux
+# Uncomment when mingw-w64 is installed:
+# [target.x86_64-pc-windows-gnu]
+# linker = "x86_64-w64-mingw32-gcc"
+# ar = "x86_64-w64-mingw32-ar"
+
+# macOS cross-compilation from Linux (requires osxcross)
+# Uncomment when osxcross is installed:
+# [target.x86_64-apple-darwin]
+# linker = "x86_64-apple-darwin20.4-clang"
+# ar = "x86_64-apple-darwin20.4-ar"
+
+# [target.aarch64-apple-darwin]
+# linker = "aarch64-apple-darwin20.4-clang"
+# ar = "aarch64-apple-darwin20.4-ar"
+
+# iOS cross-compilation (requires Xcode command line tools)
+# Uncomment when iOS toolchain is available:
+# [target.aarch64-apple-ios]
+# linker = "aarch64-apple-ios-clang"
+# ar = "aarch64-apple-ios-ar"
+
+# [target.x86_64-apple-ios]
+# linker = "x86_64-apple-ios-clang"
+# ar = "x86_64-apple-ios-ar"
+
+# Android cross-compilation (requires Android NDK)
+# Uncomment when Android NDK is installed:
+# [target.aarch64-linux-android]
+# linker = "aarch64-linux-android21-clang"
+# ar = "aarch64-linux-android-ar"
+
+# [target.armv7-linux-androideabi]
+# linker = "armv7a-linux-androideabi21-clang"
+# ar = "arm-linux-androideabi-ar"
+
+# Linux ARM64 cross-compilation
+# Uncomment when ARM64 toolchain is installed:
+# [target.aarch64-unknown-linux-gnu]
+# linker = "aarch64-linux-gnu-gcc"
+# ar = "aarch64-linux-gnu-ar"
+
+# Build settings for all targets
+[build]
+# Use LLD linker when available (faster)
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# Target-specific build settings
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-Wl,-rpath,@loader_path"]
+
+[target.'cfg(target_os = "linux")']
+rustflags = ["-C", "link-arg=-Wl,-rpath,$ORIGIN"]
+
+# FFI-specific settings for better compatibility
+[target.'cfg(target_family = "unix")']
+rustflags = ["-C", "prefer-dynamic=no"]

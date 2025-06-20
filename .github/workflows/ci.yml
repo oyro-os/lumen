@@ -2,165 +2,266 @@ name: CI
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ main, master ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  quick-check:
-    name: Quick CI Check
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Clang and tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang clang-format clang-tidy libc++-dev libc++abi-dev lcov
-        echo "CC=clang" >> $GITHUB_ENV
-        echo "CXX=clang++" >> $GITHUB_ENV
-      
-    - name: Run full CI test
-      run: |
-        make ci-test
+  # Primary test suite on Linux only
   test:
-    name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Test Suite
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        # Windows builds temporarily disabled due to DLL linkage issues
-        # os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [ubuntu-latest, macos-latest]
-        build_type: [Debug, Release]
-        include:
-          - os: ubuntu-latest
-            platform: linux
-          - os: macos-latest
-            platform: macos
-          # - os: windows-latest
-          #   platform: windows
+        rust: [stable, beta, nightly]
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Setup CMake
-      uses: jwlawson/actions-setup-cmake@v1.14
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
       with:
-        cmake-version: '3.28'
-        
-    - name: Setup Clang (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang libc++-dev libc++abi-dev
-        echo "CC=clang" >> $GITHUB_ENV
-        echo "CXX=clang++" >> $GITHUB_ENV
-        
-    - name: Setup Clang (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        echo "CC=clang" >> $GITHUB_ENV
-        echo "CXX=clang++" >> $GITHUB_ENV
-        
-    - name: Setup MSVC (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: ilammy/msvc-dev-cmd@v1
-      
-    - name: Build and Test (Unix)
-      if: matrix.os != 'windows-latest' && matrix.build_type == 'Debug'
-      run: |
-        make test
-        
-    - name: Build Release (Unix)
-      if: matrix.os != 'windows-latest' && matrix.build_type == 'Release'
-      run: |
-        make release
-        
-    - name: Build and Test (Windows Debug)
-      if: matrix.os == 'windows-latest' && matrix.build_type == 'Debug'
-      run: |
-        make windows-test
-        
-    - name: Build (Windows Release)
-      if: matrix.os == 'windows-latest' && matrix.build_type == 'Release'
-      run: |
-        make windows-release
-        
-    - name: Generate coverage report
-      if: matrix.build_type == 'Debug' && matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get install -y lcov
-        make coverage || true
-        
-    - name: Upload coverage to Codecov
-      if: matrix.build_type == 'Debug' && matrix.os == 'ubuntu-latest'
-      uses: codecov/codecov-action@v3
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
       with:
-        file: ./build/coverage.info.cleaned
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
-        
-    - name: Verify release artifacts (Unix)
-      if: matrix.build_type == 'Release' && matrix.os != 'windows-latest'
-      shell: bash
-      run: |
-        echo "=== Dist directory contents ==="
-        find dist -type f 2>/dev/null || echo "No dist directory found"
-        
-        platform="${{ matrix.platform }}"
-        arch=$(uname -m)
-        if [[ "$arch" == "x86_64" ]]; then arch="x86_64"; fi
-        if [[ "$arch" == "aarch64" || "$arch" == "arm64" ]]; then arch="arm64"; fi
-        
-        echo "Checking for: dist/${platform}/${arch}/lumen.h"
-        if [[ -f "dist/${platform}/${arch}/lumen.h" ]]; then
-          echo "✅ Header file found"
-        else
-          echo "❌ Header file missing"
-          exit 1
-        fi
-        
-        # Check for at least one library file
-        if ls dist/${platform}/${arch}/*.a 2>/dev/null || ls dist/${platform}/${arch}/*.so 2>/dev/null || ls dist/${platform}/${arch}/*.dylib 2>/dev/null; then
-          echo "✅ Library files found"
-        else
-          echo "❌ No library files found"
-          exit 1
-        fi
-        
-    - name: Verify release artifacts (Windows)
-      if: matrix.build_type == 'Release' && matrix.os == 'windows-latest'
-      shell: cmd
-      run: |
-        echo === Dist directory contents ===
-        dir /s dist 2>nul || echo No dist directory found
+        cache-on-failure: true
+    
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    
+    - name: Run Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+    
+    - name: Check compilation
+      run: cargo check --all-targets --all-features
+    
+    - name: Run tests
+      run: cargo test --workspace --verbose
+    
+    - name: Run doc tests
+      run: cargo test --doc --all-features
 
-  lint:
-    name: Code Quality
+  # Code coverage on Linux
+  coverage:
+    name: Code Coverage
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Setup Clang tools
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+    
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+    
+    - name: Generate coverage report
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: lcov.info
+        fail_ci_if_error: true
+
+  # Security audit on Linux
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+    
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    
+    - name: Run security audit
+      run: cargo audit
+
+  # Benchmarks on Linux
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+    
+    - name: Run benchmarks
+      run: cargo bench --all-features
+
+  # Cross-compilation from Linux to all other platforms
+  cross-compile:
+    name: Cross Compile (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS targets
+          - target: x86_64-apple-darwin
+            name: macOS x64
+            use_cross: true
+          - target: aarch64-apple-darwin
+            name: macOS ARM64
+            use_cross: true
+          
+          # iOS targets
+          - target: aarch64-apple-ios
+            name: iOS ARM64
+            use_cross: true
+          - target: x86_64-apple-ios
+            name: iOS Simulator
+            use_cross: true
+          
+          # Windows targets
+          - target: x86_64-pc-windows-gnu
+            name: Windows x64
+            install: mingw-w64
+          
+          # Linux targets
+          - target: aarch64-unknown-linux-gnu
+            name: Linux ARM64
+            use_cross: true
+          - target: x86_64-unknown-linux-musl
+            name: Linux x64 (musl)
+            use_cross: true
+          
+          # Android targets
+          - target: aarch64-linux-android
+            name: Android ARM64
+            use_cross: true
+          - target: armv7-linux-androideabi
+            name: Android ARMv7
+            use_cross: true
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      if: matrix.install == 'mingw-w64'
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang-format clang-tidy
-        
-    - name: Check formatting
+        sudo apt-get install -y mingw-w64
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.target }}
+    
+    - name: Install cross
+      if: matrix.use_cross
+      run: cargo install cross --git https://github.com/cross-rs/cross
+    
+    - name: Build with cross
+      if: matrix.use_cross
+      run: cross build --target ${{ matrix.target }} --release --workspace
+    
+    - name: Build with cargo
+      if: "!matrix.use_cross"
+      run: cargo build --target ${{ matrix.target }} --release --workspace
+    
+    - name: Package artifacts
       run: |
-        # For CI, we check formatting without modifying files
-        find src include tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
-        
-    - name: Run clang-tidy
-      run: |
-        echo "Skipping clang-tidy for now"
+        mkdir -p dist/${{ matrix.target }}
+        cp target/${{ matrix.target }}/release/liblumen_ffi.* dist/${{ matrix.target }}/ 2>/dev/null || true
+        cp target/${{ matrix.target }}/release/lumen_ffi.* dist/${{ matrix.target }}/ 2>/dev/null || true
+        cp lumen-ffi/include/lumen.h dist/${{ matrix.target }}/ 2>/dev/null || true
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumen-${{ matrix.target }}
+        path: dist/${{ matrix.target }}/*
+        if-no-files-found: error
 
-  # Security scan disabled for now - requires proper permissions
-  # security:
-  #   name: Security Scan
-  #   runs-on: ubuntu-latest
+  # Create release artifacts from cross-compiled binaries
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [test, cross-compile]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Create release packages
+      run: |
+        mkdir -p release
+        for dir in artifacts/lumen-*; do
+          target=$(basename $dir | sed 's/lumen-//')
+          tar czf release/lumen-${target}.tar.gz -C $dir .
+        done
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release/*.tar.gz
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+
+  # Summary job to ensure all required checks pass
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [test, coverage, security, cross-compile]
+    if: always()
+    
+    steps:
+    - name: Check results
+      run: |
+        if [[ "${{ needs.test.result }}" != "success" ]]; then
+          echo "Tests failed"
+          exit 1
+        fi
+        if [[ "${{ needs.coverage.result }}" != "success" ]]; then
+          echo "Coverage failed"
+          exit 1
+        fi
+        if [[ "${{ needs.security.result }}" != "success" ]]; then
+          echo "Security audit failed"
+          exit 1
+        fi
+        if [[ "${{ needs.cross-compile.result }}" != "success" ]]; then
+          echo "Cross-compilation failed"
+          exit 1
+        fi
+        echo "All CI checks passed!"

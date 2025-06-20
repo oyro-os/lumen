@@ -14,8 +14,15 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::must_use_candidate)]
 
-/// Re-export of common error types
-pub use anyhow::{Error, Result};
+// Core modules
+pub mod common;
+pub mod index;
+pub mod query;
+pub mod storage;
+pub mod types;
+
+// Re-exports for convenience
+pub use common::{Error, Result};
 
 /// Version information
 pub const VERSION_MAJOR: u32 = 0;

@@ -1,0 +1,22 @@
+[package]
+name = "lumen-ffi"
+version = "0.1.0"
+edition = "2021"
+authors = ["Lumen Contributors"]
+description = "C FFI bindings for Lumen database"
+repository = "https://github.com/yourusername/lumen"
+license = "MIT OR Apache-2.0"
+build = "build.rs"
+
+[lib]
+name = "lumen_ffi"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+lumen = { path = ".." }
+
+[build-dependencies]
+cbindgen = "0.26"
+
+[features]
+default = []

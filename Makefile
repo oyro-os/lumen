@@ -41,10 +41,14 @@ help:
 	@echo "  make windows       - Build for Windows"
 	@echo ""
 	@echo "$(YELLOW)Cross Compilation:$(NC)"
+	@echo "  make cross-setup   - Install all cross-compilation targets"
+	@echo "  make cross-all     - Cross-compile for all platforms from Linux"
 	@echo "  make macos-arm64   - Build for macOS ARM64"
 	@echo "  make macos-x86_64  - Build for macOS x86_64"
 	@echo "  make ios-arm64     - Build for iOS ARM64"
 	@echo "  make ios-sim       - Build for iOS Simulator"
+	@echo "  make windows-x64   - Build for Windows x64"
+	@echo "  make linux-arm64   - Build for Linux ARM64"
 	@echo ""
 	@echo "$(YELLOW)CI/CD:$(NC)"
 	@echo "  make ci-test       - Run CI tests"
@@ -71,7 +75,7 @@ release:
 
 test:
 	@echo "$(GREEN)Running tests...$(NC)"
-	@$(CARGO) test $(CARGO_FLAGS)
+	@$(CARGO) test $(CARGO_FLAGS) --workspace
 	@echo "$(GREEN)All tests passed!$(NC)"
 
 test-verbose:
@@ -129,6 +133,89 @@ windows:
 	@rustup target add x86_64-pc-windows-gnu 2>/dev/null || true
 	@cargo build --release --target x86_64-pc-windows-gnu
 	@echo "$(GREEN)Windows build complete!$(NC)"
+
+# Cross-compilation setup and targets
+cross-setup:
+	@echo "$(GREEN)Installing cross-compilation toolchains...$(NC)"
+	@echo "$(YELLOW)Installing Rust targets...$(NC)"
+	@rustup target add x86_64-apple-darwin aarch64-apple-darwin
+	@rustup target add aarch64-apple-ios x86_64-apple-ios
+	@rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
+	@rustup target add aarch64-linux-android armv7-linux-androideabi
+	@rustup target add aarch64-unknown-linux-gnu
+	@echo "$(YELLOW)Installing cargo tools...$(NC)"
+	@cargo install cargo-lipo 2>/dev/null || true
+	@cargo install cargo-ndk 2>/dev/null || true
+	@echo "$(GREEN)Cross-compilation setup complete!$(NC)"
+	@echo "$(YELLOW)NOTE: For Windows cross-compilation from Linux, install mingw-w64:$(NC)"
+	@echo "  Ubuntu/Debian: sudo apt install mingw-w64"
+	@echo "  Fedora/RHEL: sudo dnf install mingw64-gcc"
+	@echo "  Arch: sudo pacman -S mingw-w64-gcc"
+
+cross-all: cross-setup
+	@echo "$(GREEN)Cross-compiling for all platforms...$(NC)"
+	@mkdir -p $(DIST_DIR)/{linux,macos,ios,windows,android}
+	@$(MAKE) macos-arm64
+	@$(MAKE) macos-x86_64  
+	@$(MAKE) ios-arm64
+	@$(MAKE) ios-sim
+	@$(MAKE) windows-x64
+	@$(MAKE) linux-arm64
+	@$(MAKE) android
+	@echo "$(GREEN)All cross-compilation targets complete!$(NC)"
+	@echo "$(YELLOW)Output directory: $(DIST_DIR)$(NC)"
+
+# macOS targets
+macos-arm64:
+	@echo "$(GREEN)Building for macOS ARM64...$(NC)"
+	@rustup target add aarch64-apple-darwin 2>/dev/null || true
+	@cargo build --release --target aarch64-apple-darwin $(CARGO_FLAGS)
+	@mkdir -p $(DIST_DIR)/macos/arm64
+	@cp target/aarch64-apple-darwin/release/liblumen_ffi.* $(DIST_DIR)/macos/arm64/ 2>/dev/null || true
+	@echo "$(GREEN)macOS ARM64 build complete!$(NC)"
+
+macos-x86_64:
+	@echo "$(GREEN)Building for macOS x86_64...$(NC)"
+	@rustup target add x86_64-apple-darwin 2>/dev/null || true
+	@cargo build --release --target x86_64-apple-darwin $(CARGO_FLAGS)
+	@mkdir -p $(DIST_DIR)/macos/x86_64
+	@cp target/x86_64-apple-darwin/release/liblumen_ffi.* $(DIST_DIR)/macos/x86_64/ 2>/dev/null || true
+	@echo "$(GREEN)macOS x86_64 build complete!$(NC)"
+
+# iOS targets
+ios-arm64:
+	@echo "$(GREEN)Building for iOS ARM64...$(NC)"
+	@rustup target add aarch64-apple-ios 2>/dev/null || true
+	@cargo build --release --target aarch64-apple-ios $(CARGO_FLAGS)
+	@mkdir -p $(DIST_DIR)/ios/arm64
+	@cp target/aarch64-apple-ios/release/liblumen_ffi.a $(DIST_DIR)/ios/arm64/ 2>/dev/null || true
+	@echo "$(GREEN)iOS ARM64 build complete!$(NC)"
+
+ios-sim:
+	@echo "$(GREEN)Building for iOS Simulator...$(NC)"
+	@rustup target add x86_64-apple-ios 2>/dev/null || true
+	@cargo build --release --target x86_64-apple-ios $(CARGO_FLAGS)
+	@mkdir -p $(DIST_DIR)/ios/simulator
+	@cp target/x86_64-apple-ios/release/liblumen_ffi.a $(DIST_DIR)/ios/simulator/ 2>/dev/null || true
+	@echo "$(GREEN)iOS Simulator build complete!$(NC)"
+
+# Windows targets
+windows-x64:
+	@echo "$(GREEN)Building for Windows x64...$(NC)"
+	@rustup target add x86_64-pc-windows-gnu 2>/dev/null || true
+	@cargo build --release --target x86_64-pc-windows-gnu $(CARGO_FLAGS)
+	@mkdir -p $(DIST_DIR)/windows/x64
+	@cp target/x86_64-pc-windows-gnu/release/lumen_ffi.* $(DIST_DIR)/windows/x64/ 2>/dev/null || true
+	@echo "$(GREEN)Windows x64 build complete!$(NC)"
+
+# Linux targets
+linux-arm64:
+	@echo "$(GREEN)Building for Linux ARM64...$(NC)"
+	@rustup target add aarch64-unknown-linux-gnu 2>/dev/null || true
+	@cargo build --release --target aarch64-unknown-linux-gnu $(CARGO_FLAGS)
+	@mkdir -p $(DIST_DIR)/linux/arm64
+	@cp target/aarch64-unknown-linux-gnu/release/liblumen_ffi.* $(DIST_DIR)/linux/arm64/ 2>/dev/null || true
+	@echo "$(GREEN)Linux ARM64 build complete!$(NC)"
 
 
 # CI/CD targets
@@ -195,4 +282,5 @@ c: clean
 
 .PHONY: help build release test test-verbose bench doc coverage \
         macos macos-universal ios android linux windows \
+        cross-setup cross-all macos-arm64 macos-x86_64 ios-arm64 ios-sim windows-x64 linux-arm64 \
         ci-test format lint check install package clean distclean t b r c
