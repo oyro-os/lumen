@@ -1,9 +1,9 @@
 //! Tests for page header structure
 
+use bytemuck::bytes_of;
+use lumen::storage::page_constants::*;
 use lumen::storage::page_header::*;
 use lumen::storage::page_type::PageType;
-use lumen::storage::page_constants::*;
-use bytemuck::bytes_of;
 
 #[test]
 fn test_page_header_size() {
@@ -14,30 +14,28 @@ fn test_page_header_size() {
 #[test]
 fn test_page_header_zero_copy() {
     let mut buffer = [0u8; 32];
-    let header = PageHeader {
-        page_type: PageType::Leaf,
-        flags: 0x42,
-        free_space: 1024,
-        page_id: 42,
-        next_page: 100,
-        lsn: 0x123456789ABCDEF0,
-        checksum: 0x12345678,
-        reserved: 0,
-        _padding: [0; 4],
-    };
+    let mut header = PageHeader::default();
+    header.page_type = PageType::Leaf;
+    header.flags = 0x42;
+    header.free_space = 1024;
+    header.page_id = 42;
+    header.next_page = 100;
+    header.lsn = 0x123456789ABCDEF0;
+    header.checksum = 0x12345678;
+    header.reserved = 0;
 
     // Write using bytemuck
     buffer.copy_from_slice(bytes_of(&header));
 
     // Read using bytemuck
     let read_header: PageHeader = bytemuck::pod_read_unaligned(&buffer);
-    
+
     // Copy fields to avoid unaligned access to packed struct
     let page_type = read_header.page_type;
     let flags = read_header.flags;
     let page_id = read_header.page_id;
     let checksum = read_header.checksum;
-    
+
     assert_eq!(page_type, PageType::Leaf);
     assert_eq!(flags, 0x42);
     assert_eq!(page_id, 42);
@@ -56,7 +54,7 @@ fn test_page_header_default() {
     let lsn = header.lsn;
     let checksum = header.checksum;
     let reserved = header.reserved;
-    
+
     assert_eq!(page_type, PageType::Free);
     assert_eq!(flags, 0);
     assert_eq!(free_space, PAGE_USABLE_SIZE as u16);

@@ -78,7 +78,7 @@ mod tests {
         for invalid in 4u8..=255u8 {
             match PageType::try_from(invalid) {
                 Err(Error::InvalidPageType(val)) => assert_eq!(val, invalid),
-                _ => panic!("Expected InvalidPageType error for value {}", invalid),
+                _ => panic!("Expected InvalidPageType error for value {invalid}"),
             }
         }
     }

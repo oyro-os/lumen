@@ -18,5 +18,5 @@ fn test_page_id_constants() {
 #[test]
 fn test_page_size_is_power_of_two() {
     assert!(PAGE_SIZE.is_power_of_two());
-    assert!(PAGE_SIZE >= 4096);
+    assert_eq!(PAGE_SIZE, 4096);
 }

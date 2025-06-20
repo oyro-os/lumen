@@ -38,7 +38,9 @@ mod tests {
     #[test]
     fn test_page_size_is_power_of_two() {
         assert!(PAGE_SIZE.is_power_of_two());
-        assert!(PAGE_SIZE >= 4096);
+        // PAGE_SIZE is a constant 4096, so this would always be true
+        // Just verify the actual value instead
+        assert_eq!(PAGE_SIZE, 4096);
     }
 
     #[test]
@@ -51,12 +53,12 @@ mod tests {
     fn test_database_size_calculation() {
         // With 32-bit page IDs and 4KB pages, we can address:
         // u32::MAX * 4KB = 17592186040320 bytes (approximately 16TB)
-        let max_database_size = (MAX_PAGE_ID as u64) * (PAGE_SIZE as u64);
-        assert_eq!(max_database_size, 17592186040320);
-        
+        let max_database_size = u64::from(MAX_PAGE_ID) * (PAGE_SIZE as u64);
+        assert_eq!(max_database_size, 17_592_186_040_320);
+
         // This is approximately 16TB (actually 16TB - 4096 bytes)
         let sixteen_tb = 16u64 * 1024 * 1024 * 1024 * 1024;
-        assert_eq!(sixteen_tb, 17592186044416);
+        assert_eq!(sixteen_tb, 17_592_186_044_416);
         assert_eq!(sixteen_tb - max_database_size, 4096); // Exactly one page less
     }
 }

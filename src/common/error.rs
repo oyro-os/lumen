@@ -108,7 +108,10 @@ impl Error {
             | Error::TransactionConflict(_)
             | Error::InvalidInput(_)
             | Error::NotFound(_) => true,
-            Error::Corruption(_) | Error::OutOfMemory | Error::InvalidPageType(_) | Error::Internal(_) => false,
+            Error::Corruption(_)
+            | Error::OutOfMemory
+            | Error::InvalidPageType(_)
+            | Error::Internal(_) => false,
         }
     }
 }

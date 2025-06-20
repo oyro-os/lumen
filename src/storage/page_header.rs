@@ -1,8 +1,8 @@
 //! Page header structure - exactly 32 bytes at the beginning of each page
 
-use bytemuck::{Pod, Zeroable};
-use crate::storage::page_type::PageType;
 use crate::storage::page_constants::{PageId, INVALID_PAGE_ID, PAGE_USABLE_SIZE};
+use crate::storage::page_type::PageType;
+use bytemuck::{Pod, Zeroable};
 
 /// Page header - exactly 32 bytes, zero-copy serializable
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,7 +25,8 @@ pub struct PageHeader {
     /// Reserved for future use (4 bytes)
     pub reserved: u32,
     /// Padding to ensure 32 bytes total (4 bytes)
-    pub _padding: [u8; 4],
+    #[allow(dead_code)] // Required for struct size
+    padding: [u8; 4],
     // Total: 32 bytes
 }
 
@@ -35,17 +36,18 @@ unsafe impl Pod for PageHeader {}
 unsafe impl Zeroable for PageHeader {}
 
 impl Default for PageHeader {
+    #[allow(clippy::cast_possible_truncation)]
     fn default() -> Self {
         Self {
             page_type: PageType::Free,
             flags: 0,
-            free_space: PAGE_USABLE_SIZE as u16,
+            free_space: PAGE_USABLE_SIZE as u16, // PAGE_USABLE_SIZE is 4064, fits in u16
             page_id: INVALID_PAGE_ID,
             next_page: INVALID_PAGE_ID,
             lsn: 0,
             checksum: 0,
             reserved: 0,
-            _padding: [0; 4],
+            padding: [0; 4],
         }
     }
 }
@@ -97,7 +99,7 @@ mod tests {
     #[test]
     fn test_field_offsets() {
         use std::mem::offset_of;
-        
+
         // Check field offsets
         println!("page_type offset: {}", offset_of!(PageHeader, page_type));
         println!("flags offset: {}", offset_of!(PageHeader, flags));
@@ -130,19 +132,19 @@ mod tests {
     #[test]
     fn test_page_header_flags() {
         let mut header = PageHeader::default();
-        
+
         assert!(!header.is_dirty());
         header.set_dirty(true);
         assert!(header.is_dirty());
-        
+
         assert!(!header.is_pinned());
         header.set_pinned(true);
         assert!(header.is_pinned());
-        
+
         // Both flags should be independent
         assert!(header.is_dirty());
         assert!(header.is_pinned());
-        
+
         header.set_dirty(false);
         assert!(!header.is_dirty());
         assert!(header.is_pinned());
