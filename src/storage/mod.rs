@@ -1,5 +1,5 @@
 //! Storage layer implementation
 
-// Will be implemented in Phase 2
-// pub mod page;
-// pub mod file_format;
+pub mod page_constants;
+pub mod page_type;
+pub mod page_header;

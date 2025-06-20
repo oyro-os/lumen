@@ -28,7 +28,7 @@ chrono = { version = "0.4", features = ["serde"] }
 # Storage and I/O
 memmap2 = "0.9"
 crc32fast = "1.4"
-bytemuck = "1.14"
+bytemuck = { version = "1.14", features = ["derive"] }
 
 # Concurrency
 parking_lot = "0.12"

@@ -20,6 +20,8 @@ pub enum Error {
     OutOfMemory,
     /// Transaction conflict or deadlock
     TransactionConflict(String),
+    /// Invalid page type
+    InvalidPageType(u8),
     /// Internal database error
     Internal(String),
 }
@@ -33,6 +35,7 @@ impl fmt::Display for Error {
             Error::NotFound(msg) => write!(f, "Not found: {msg}"),
             Error::OutOfMemory => write!(f, "Out of memory"),
             Error::TransactionConflict(msg) => write!(f, "Transaction conflict: {msg}"),
+            Error::InvalidPageType(value) => write!(f, "Invalid page type: {value}"),
             Error::Internal(msg) => write!(f, "Internal error: {msg}"),
         }
     }
@@ -105,7 +108,7 @@ impl Error {
             | Error::TransactionConflict(_)
             | Error::InvalidInput(_)
             | Error::NotFound(_) => true,
-            Error::Corruption(_) | Error::OutOfMemory | Error::Internal(_) => false,
+            Error::Corruption(_) | Error::OutOfMemory | Error::InvalidPageType(_) | Error::Internal(_) => false,
         }
     }
 }
