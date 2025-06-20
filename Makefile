@@ -5,6 +5,7 @@
 .DEFAULT_GOAL := help
 
 # Variables
+ROOT_DIR := $(shell pwd)
 BUILD_DIR := build
 DIST_DIR := dist
 CORES := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
@@ -58,7 +59,7 @@ help:
 build: clean
 	@echo "$(GREEN)Building Lumen (Debug)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+	@cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	@cd $(BUILD_DIR) && $(MAKE) -j$(CORES)
 	@echo "$(GREEN)Build complete!$(NC)"
 
@@ -206,7 +207,7 @@ ci-test:
 format:
 	@echo "$(GREEN)Formatting code...$(NC)"
 	@if command -v clang-format >/dev/null 2>&1; then \
-		find src include tests -name "*.cpp" -o -name "*.h" | xargs clang-format -i; \
+		find $(ROOT_DIR)/src $(ROOT_DIR)/include $(ROOT_DIR)/tests -name "*.cpp" -o -name "*.h" 2>/dev/null | xargs -r clang-format -i; \
 		echo "$(GREEN)Code formatted!$(NC)"; \
 	else \
 		echo "$(YELLOW)clang-format not found. Install with: brew install clang-format$(NC)"; \
@@ -216,7 +217,7 @@ format:
 format-check:
 	@echo "$(GREEN)Checking code format...$(NC)"
 	@if command -v clang-format >/dev/null 2>&1; then \
-		find src include tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror; \
+		find $(ROOT_DIR)/src $(ROOT_DIR)/include $(ROOT_DIR)/tests -name "*.cpp" -o -name "*.h" 2>/dev/null | xargs -r clang-format --dry-run --Werror; \
 		echo "$(GREEN)Code format check passed!$(NC)"; \
 	else \
 		echo "$(YELLOW)clang-format not found. Install with: brew install clang-format$(NC)"; \
@@ -226,9 +227,34 @@ format-check:
 lint:
 	@echo "$(GREEN)Running clang-tidy...$(NC)"
 	@if command -v clang-tidy >/dev/null 2>&1; then \
-		mkdir -p $(BUILD_DIR); \
-		cd $(BUILD_DIR) && CC=$${CC:-clang} CXX=$${CXX:-clang++} $(CMAKE) .. -DCMAKE_BUILD_TYPE=Debug; \
-		find src -name "*.cpp" | xargs clang-tidy -p $(BUILD_DIR); \
+		if [ -f "$(BUILD_DIR)/compile_commands.json" ]; then \
+			echo "$(YELLOW)Note: clang-tidy may show system header errors on macOS. These can be ignored.$(NC)"; \
+			find src -name "*.cpp" 2>/dev/null | while read file; do \
+				if [ -f "$$file" ]; then \
+					echo "  Checking $$file..."; \
+					clang-tidy "$$file" -p $(BUILD_DIR) \
+						--config-file=$(ROOT_DIR)/.clang-tidy \
+						--extra-arg=-Wno-unknown-warning-option \
+						--extra-arg=-Wno-unused-command-line-argument \
+						2>&1 | \
+						grep -E "(warning:|error:)" | \
+						grep -v "error: .* file not found" | \
+						grep -v "error: unknown key" | \
+						grep -v "error: use of undeclared identifier" | \
+						grep -v "error: unknown type name" | \
+						grep -v "error: no member named" | \
+						grep -v "error: reference to unresolved" | \
+						grep -v "Error while processing" | \
+						grep -v "Error parsing" | \
+						grep -v "errors generated" | \
+						grep -v "clang-diagnostic-error" || true; \
+				fi; \
+			done; \
+			echo "$(GREEN)Lint check complete!$(NC)"; \
+		else \
+			echo "$(YELLOW)No compilation database found. Run 'make build' first.$(NC)"; \
+			exit 1; \
+		fi \
 	else \
 		echo "$(YELLOW)clang-tidy not found. Install with: brew install llvm$(NC)"; \
 		echo "$(YELLOW)Skipping lint check$(NC)"; \

@@ -57,6 +57,25 @@ if(BUILD_TESTS)
     FetchContent_MakeAvailable(googletest)
 endif()
 
+# Google Benchmark
+if(BUILD_TESTS)
+    message(STATUS "Fetching Google Benchmark...")
+    
+    FetchContent_Declare(
+        googlebenchmark
+        URL https://github.com/google/benchmark/archive/refs/tags/v1.8.3.tar.gz
+        URL_HASH SHA256=6bc180a57d23d4d9515519f92b0c83d61b05b5bab188961f36ac7b06b0d9e9ce
+        SOURCE_DIR ${CMAKE_SOURCE_DIR}/third_party/googlebenchmark-v1.8.3
+        DOWNLOAD_EXTRACT_TIMESTAMP NO
+    )
+    
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    
+    FetchContent_MakeAvailable(googlebenchmark)
+endif()
+
 # mimalloc (fetch latest release)
 if(LUMEN_ALLOCATOR STREQUAL "MIMALLOC")
     message(STATUS "Fetching latest mimalloc release...")

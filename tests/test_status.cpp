@@ -1,5 +1,5 @@
-#include <lumen/common/status.h>
 #include <gtest/gtest.h>
+#include <lumen/common/status.h>
 
 using namespace lumen;
 
@@ -25,15 +25,15 @@ TEST(StatusTest, SpecificErrors) {
     auto invalid = Status::invalid_argument("bad input");
     EXPECT_EQ(invalid.code(), ErrorCode::INVALID_ARGUMENT);
     EXPECT_EQ(invalid.message(), "bad input");
-    
+
     auto not_found = Status::not_found("key missing");
     EXPECT_EQ(not_found.code(), ErrorCode::NOT_FOUND);
     EXPECT_EQ(not_found.message(), "key missing");
-    
+
     auto corruption = Status::corruption("checksum failed");
     EXPECT_EQ(corruption.code(), ErrorCode::CORRUPTION);
     EXPECT_EQ(corruption.message(), "checksum failed");
-    
+
     auto io_error = Status::io_error("disk read failed");
     EXPECT_EQ(io_error.code(), ErrorCode::IO_ERROR);
     EXPECT_EQ(io_error.message(), "disk read failed");
@@ -56,7 +56,7 @@ TEST(ResultTest, ErrorResult) {
     EXPECT_EQ(result.error().code(), ErrorCode::NOT_FOUND);
     EXPECT_EQ(result.error().message(), "not found");
     EXPECT_EQ(result.value_or(99), 99);
-    
+
     // value() should throw
     EXPECT_THROW(result.value(), std::runtime_error);
 }
@@ -74,17 +74,16 @@ TEST(ResultTest, AndThen) {
         }
         return Result<int>::error(ErrorCode::INVALID_ARGUMENT, "not positive");
     };
-    
+
     auto result1 = Result<int>::ok(5).and_then(double_if_positive);
     EXPECT_TRUE(result1.is_ok());
     EXPECT_EQ(result1.value(), 10);
-    
+
     auto result2 = Result<int>::ok(-5).and_then(double_if_positive);
     EXPECT_FALSE(result2.is_ok());
     EXPECT_EQ(result2.error().code(), ErrorCode::INVALID_ARGUMENT);
-    
-    auto result3 = Result<int>::error(ErrorCode::IO_ERROR, "failed")
-                              .and_then(double_if_positive);
+
+    auto result3 = Result<int>::error(ErrorCode::IO_ERROR, "failed").and_then(double_if_positive);
     EXPECT_FALSE(result3.is_ok());
     EXPECT_EQ(result3.error().code(), ErrorCode::IO_ERROR);
 }
@@ -93,7 +92,7 @@ TEST(ResultTest, VoidResult) {
     auto ok = Result<void>::ok();
     EXPECT_TRUE(ok.is_ok());
     EXPECT_FALSE(ok.is_error());
-    
+
     auto error = Result<void>::error(ErrorCode::PERMISSION_DENIED, "access denied");
     EXPECT_FALSE(error.is_ok());
     EXPECT_TRUE(error.is_error());

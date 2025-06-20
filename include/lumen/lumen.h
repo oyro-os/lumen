@@ -7,51 +7,51 @@
 
 // Platform detection
 #ifdef _WIN32
-    #define LUMEN_PLATFORM_WINDOWS
-    #ifdef _WIN64
-        #define LUMEN_PLATFORM_WIN64
-    #else
-        #define LUMEN_PLATFORM_WIN32
-    #endif
-#elif __APPLE__
-    #include <TargetConditionals.h>
-    #if TARGET_OS_MAC
-        #define LUMEN_PLATFORM_MACOS
-    #elif TARGET_OS_IPHONE
-        #define LUMEN_PLATFORM_IOS
-    #endif
-#elif __ANDROID__
-    #define LUMEN_PLATFORM_ANDROID
-#elif __linux__
-    #define LUMEN_PLATFORM_LINUX
+#define LUMEN_PLATFORM_WINDOWS
+#ifdef _WIN64
+#define LUMEN_PLATFORM_WIN64
 #else
-    #error "Unknown platform"
+#define LUMEN_PLATFORM_WIN32
+#endif
+#elif __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_MAC
+#define LUMEN_PLATFORM_MACOS
+#elif TARGET_OS_IPHONE
+#define LUMEN_PLATFORM_IOS
+#endif
+#elif __ANDROID__
+#define LUMEN_PLATFORM_ANDROID
+#elif __linux__
+#define LUMEN_PLATFORM_LINUX
+#else
+#error "Unknown platform"
 #endif
 
 // Export/Import macros
 #ifdef LUMEN_SHARED_LIBRARY
-    #ifdef LUMEN_BUILDING_LIBRARY
-        #ifdef LUMEN_PLATFORM_WINDOWS
-            #define LUMEN_API __declspec(dllexport)
-        #else
-            #define LUMEN_API __attribute__((visibility("default")))
-        #endif
-    #else
-        #ifdef LUMEN_PLATFORM_WINDOWS
-            #define LUMEN_API __declspec(dllimport)
-        #else
-            #define LUMEN_API
-        #endif
-    #endif
+#ifdef LUMEN_BUILDING_LIBRARY
+#ifdef LUMEN_PLATFORM_WINDOWS
+#define LUMEN_API __declspec(dllexport)
 #else
-    #define LUMEN_API
+#define LUMEN_API __attribute__((visibility("default")))
+#endif
+#else
+#ifdef LUMEN_PLATFORM_WINDOWS
+#define LUMEN_API __declspec(dllimport)
+#else
+#define LUMEN_API
+#endif
+#endif
+#else
+#define LUMEN_API
 #endif
 
 // C++ standard requirements
 #ifdef __cplusplus
-    #if __cplusplus < 202002L
-        #error "Lumen requires C++20 or later"
-    #endif
+#if __cplusplus < 202002L
+#error "Lumen requires C++20 or later"
+#endif
 #endif
 
 // Standard includes
@@ -62,14 +62,15 @@ namespace lumen {
 
 // Forward declarations
 class Status;
-template<typename T> class Result;
+template<typename T>
+class Result;
 class Database;
 
-} // namespace lumen
+}  // namespace lumen
 
 // Public C++ API includes
-#include <lumen/common/status.h>
 #include <lumen/common/logging.h>
+#include <lumen/common/status.h>
 
 // C API
 #ifdef __cplusplus

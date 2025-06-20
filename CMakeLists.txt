@@ -34,7 +34,7 @@ include(Version)
 # Source files (starting with minimal C API)
 set(LUMEN_SOURCES
     src/lumen_c_api.cpp
-    src/types.cpp
+    # src/types.cpp  # Will be implemented in Phase 5
     src/common/status.cpp
     src/common/logging.cpp
     # src/memory/allocator.cpp

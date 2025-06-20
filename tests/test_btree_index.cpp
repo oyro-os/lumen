@@ -206,20 +206,21 @@ TEST_F(BTreeIndexTest, Persistence) {
 
         EXPECT_EQ(btree_->size(), num_entries);
         saved_root_page_id = btree_->root_page_id();
-        
+
         // Force flush
         storage_->flush_all_pages();
     }
 
     // Clear the existing btree instance
     btree_.reset();
-    
+
     // Clear buffer pool to ensure we read from disk
     storage_->buffer_pool()->reset();
 
     // Create new BTreeIndex instance using the saved root page ID
-    btree_ = std::make_unique<BTreeIndex>(storage_, saved_root_page_id, BTreeIndexConfig{.min_degree = 3});
-    
+    btree_ = std::make_unique<BTreeIndex>(storage_, saved_root_page_id,
+                                          BTreeIndexConfig{.min_degree = 3});
+
     // Verify size is correct
     EXPECT_EQ(btree_->size(), num_entries);
 

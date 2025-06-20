@@ -18,4 +18,4 @@ int lumen_version_patch() {
     return LUMEN_VERSION_PATCH;
 }
 
-} // extern "C"
+}  // extern "C"

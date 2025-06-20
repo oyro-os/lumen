@@ -62,6 +62,7 @@ add_executable(lumen_benchmarks
 
 target_link_libraries(lumen_benchmarks
     lumen_static
+    benchmark::benchmark
 )
 
 target_include_directories(lumen_benchmarks PRIVATE
