@@ -3,8 +3,8 @@
 /// Page size in bytes - must be power of 2 and >= 4KB
 pub const PAGE_SIZE: usize = 4096;
 
-/// Page header size in bytes
-pub const PAGE_HEADER_SIZE: usize = 32;
+/// Page header size in bytes - MUST match plan/storage-format.md
+pub const PAGE_HEADER_SIZE: usize = 16;
 
 /// Usable space in page after header
 pub const PAGE_USABLE_SIZE: usize = PAGE_SIZE - PAGE_HEADER_SIZE;
@@ -25,8 +25,8 @@ mod tests {
     #[test]
     fn test_page_constants() {
         assert_eq!(PAGE_SIZE, 4096);
-        assert_eq!(PAGE_HEADER_SIZE, 32);
-        assert_eq!(PAGE_USABLE_SIZE, 4064);
+        assert_eq!(PAGE_HEADER_SIZE, 16);
+        assert_eq!(PAGE_USABLE_SIZE, 4080);
     }
 
     #[test]

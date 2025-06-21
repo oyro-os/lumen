@@ -8,20 +8,20 @@ use lumen::storage::page_type::PageType;
 fn test_page_creation() {
     let page = Page::new();
     assert_eq!(page.size(), PAGE_SIZE);
-    assert_eq!(page.header().page_type, PageType::Free);
+    assert_eq!(page.header().page_type, PageType::Header);
 }
 
 #[test]
 fn test_page_header_access() {
     let mut page = Page::new();
-    page.header_mut().page_type = PageType::Leaf;
+    page.header_mut().page_type = PageType::BTreeLeaf;
     page.header_mut().page_id = 100;
 
     // Copy fields to avoid unaligned access to packed struct
     let page_type = page.header().page_type;
     let page_id = page.header().page_id;
 
-    assert_eq!(page_type, PageType::Leaf);
+    assert_eq!(page_type, PageType::BTreeLeaf);
     assert_eq!(page_id, 100);
 }
 
@@ -48,7 +48,7 @@ fn test_page_initialization() {
     let page_id = page.header().page_id;
     let lsn = page.header().lsn;
 
-    assert_eq!(page_type, PageType::Free);
+    assert_eq!(page_type, PageType::Header);
     assert_eq!(page_id, INVALID_PAGE_ID);
     assert_eq!(lsn, 0);
 
@@ -65,8 +65,8 @@ fn test_page_raw_access() {
     assert_eq!(page.raw_mut().len(), PAGE_SIZE);
 
     // Write through raw and read through header/data
-    page.raw_mut()[0] = PageType::Leaf as u8;
-    assert_eq!(page.header().page_type, PageType::Leaf);
+    page.raw_mut()[4] = PageType::BTreeLeaf as u8;
+    assert_eq!(page.header().page_type, PageType::BTreeLeaf);
 
     page.raw_mut()[PAGE_HEADER_SIZE] = 0xAB;
     assert_eq!(page.data()[0], 0xAB);

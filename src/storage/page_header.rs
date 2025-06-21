@@ -1,33 +1,27 @@
-//! Page header structure - exactly 32 bytes at the beginning of each page
+//! Page header structure - exactly 16 bytes at the beginning of each page
+//! MUST match plan/storage-format.md specification
 
 use crate::storage::page_constants::{PageId, INVALID_PAGE_ID, PAGE_USABLE_SIZE};
 use crate::storage::page_type::PageType;
 use bytemuck::{Pod, Zeroable};
 
-/// Page header - exactly 32 bytes, zero-copy serializable
+/// Page header - exactly 16 bytes as specified in plan/storage-format.md
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C, packed(1))]
 pub struct PageHeader {
-    /// Page type (1 byte)
+    /// Page number (4 bytes)
+    pub page_id: u32,
+    /// Page type enum (1 byte)
     pub page_type: PageType,
-    /// Page flags (1 byte)
+    /// Page-specific flags (1 byte)
     pub flags: u8,
-    /// Free space in the page (2 bytes)
+    /// Bytes of free space (2 bytes)
     pub free_space: u16,
-    /// This page's ID (4 bytes)
-    pub page_id: PageId,
-    /// Next page in chain (4 bytes)
-    pub next_page: PageId,
-    /// Log sequence number for recovery (8 bytes)
-    pub lsn: u64,
-    /// CRC32 checksum (4 bytes)
+    /// CRC32 of page content (4 bytes)
     pub checksum: u32,
-    /// Reserved for future use (4 bytes)
-    pub reserved: u32,
-    /// Padding to ensure 32 bytes total (4 bytes)
-    #[allow(dead_code)] // Required for struct size
-    padding: [u8; 4],
-    // Total: 32 bytes
+    /// Log sequence number (4 bytes)
+    pub lsn: u32,
+    // Total: 16 bytes (exactly as specified)
 }
 
 // SAFETY: PageHeader is a POD type with no padding or invalid values
@@ -39,15 +33,12 @@ impl Default for PageHeader {
     #[allow(clippy::cast_possible_truncation)]
     fn default() -> Self {
         Self {
-            page_type: PageType::Free,
-            flags: 0,
-            free_space: PAGE_USABLE_SIZE as u16, // PAGE_USABLE_SIZE is 4064, fits in u16
             page_id: INVALID_PAGE_ID,
-            next_page: INVALID_PAGE_ID,
-            lsn: 0,
+            page_type: PageType::Header, // Default to Header type
+            flags: 0,
+            free_space: PAGE_USABLE_SIZE as u16, // PAGE_USABLE_SIZE is 4080, fits in u16
             checksum: 0,
-            reserved: 0,
-            padding: [0; 4],
+            lsn: 0,
         }
     }
 }
@@ -56,8 +47,8 @@ impl PageHeader {
     /// Create a new page header with the given type and ID
     pub fn new(page_type: PageType, page_id: PageId) -> Self {
         Self {
-            page_type,
             page_id,
+            page_type,
             ..Default::default()
         }
     }
@@ -100,30 +91,28 @@ mod tests {
     fn test_field_offsets() {
         use std::mem::offset_of;
 
-        // Check field offsets
-        println!("page_type offset: {}", offset_of!(PageHeader, page_type));
-        println!("flags offset: {}", offset_of!(PageHeader, flags));
-        println!("free_space offset: {}", offset_of!(PageHeader, free_space));
-        println!("page_id offset: {}", offset_of!(PageHeader, page_id));
-        println!("next_page offset: {}", offset_of!(PageHeader, next_page));
-        println!("lsn offset: {}", offset_of!(PageHeader, lsn));
-        println!("checksum offset: {}", offset_of!(PageHeader, checksum));
-        println!("reserved offset: {}", offset_of!(PageHeader, reserved));
-        println!("Total size: {}", std::mem::size_of::<PageHeader>());
+        // Check field offsets match plan/storage-format.md
+        assert_eq!(offset_of!(PageHeader, page_id), 0);
+        assert_eq!(offset_of!(PageHeader, page_type), 4);
+        assert_eq!(offset_of!(PageHeader, flags), 5);
+        assert_eq!(offset_of!(PageHeader, free_space), 6);
+        assert_eq!(offset_of!(PageHeader, checksum), 8);
+        assert_eq!(offset_of!(PageHeader, lsn), 12);
+        assert_eq!(std::mem::size_of::<PageHeader>(), 16);
     }
 
     #[test]
     fn test_page_header_size() {
-        // Ensure the header is exactly 32 bytes
-        assert_eq!(std::mem::size_of::<PageHeader>(), 32);
+        // Ensure the header is exactly 16 bytes as per plan/storage-format.md
+        assert_eq!(std::mem::size_of::<PageHeader>(), 16);
     }
 
     #[test]
     fn test_page_header_pod() {
         // Test that we can safely cast to/from bytes
-        let header = PageHeader::new(PageType::Leaf, 42);
+        let header = PageHeader::new(PageType::BTreeLeaf, 42);
         let bytes = bytes_of(&header);
-        assert_eq!(bytes.len(), 32);
+        assert_eq!(bytes.len(), 16);
 
         let header2: &PageHeader = from_bytes(bytes);
         assert_eq!(header, *header2);

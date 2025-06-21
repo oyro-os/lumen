@@ -14,7 +14,7 @@ fn test_page_write_and_read() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create(temp_file.path())?;
 
     let mut write_page = Page::new();
-    write_page.header_mut().page_type = PageType::Leaf;
+    write_page.header_mut().page_type = PageType::BTreeLeaf;
     write_page.header_mut().page_id = 42;
     write_page.data_mut()[0] = 0xFF;
     write_page.calculate_checksum()?;
@@ -27,7 +27,7 @@ fn test_page_write_and_read() -> Result<(), Box<dyn std::error::Error>> {
     // Checksum is automatically verified during read
     let page_type = read_page.header().page_type;
     let page_id = read_page.header().page_id;
-    assert_eq!(page_type, PageType::Leaf);
+    assert_eq!(page_type, PageType::BTreeLeaf);
     assert_eq!(page_id, 42);
     assert_eq!(read_page.data()[0], 0xFF);
 
@@ -42,7 +42,7 @@ fn test_page_io_multiple_pages() -> Result<(), Box<dyn std::error::Error>> {
     // Write multiple pages
     for i in 0..5 {
         let mut page = Page::new();
-        page.header_mut().page_type = PageType::Leaf;
+        page.header_mut().page_type = PageType::BTreeLeaf;
         page.header_mut().page_id = i;
         page.data_mut()[0] = i as u8;
         page.calculate_checksum()?;
@@ -71,7 +71,7 @@ fn test_page_io_memory_mapped() -> Result<(), Box<dyn std::error::Error>> {
     drop(file); // Close file before memory mapping
 
     let mut write_page = Page::new();
-    write_page.header_mut().page_type = PageType::Internal;
+    write_page.header_mut().page_type = PageType::BTreeInternal;
     write_page.header_mut().page_id = 100;
     write_page.calculate_checksum()?;
 
@@ -82,7 +82,7 @@ fn test_page_io_memory_mapped() -> Result<(), Box<dyn std::error::Error>> {
     // Checksum is automatically verified during read
     let page_type = read_page.header().page_type;
     let page_id = read_page.header().page_id;
-    assert_eq!(page_type, PageType::Internal);
+    assert_eq!(page_type, PageType::BTreeInternal);
     assert_eq!(page_id, 100);
 
     Ok(())
@@ -121,7 +121,7 @@ fn test_page_io_direct() -> Result<(), Box<dyn std::error::Error>> {
     let temp_file = NamedTempFile::new()?;
 
     let mut write_page = Page::new();
-    write_page.header_mut().page_type = PageType::Leaf;
+    write_page.header_mut().page_type = PageType::BTreeLeaf;
     write_page.header_mut().page_id = 77;
     write_page.data_mut()[100] = 0xAB;
     write_page.calculate_checksum()?;
@@ -144,7 +144,7 @@ fn test_page_io_sync() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create(temp_file.path())?;
 
     let mut page = Page::new();
-    page.header_mut().page_type = PageType::Free;
+    page.header_mut().page_type = PageType::FreeList;
     page.calculate_checksum()?;
 
     // Test synchronized write
@@ -156,7 +156,7 @@ fn test_page_io_sync() -> Result<(), Box<dyn std::error::Error>> {
 
     // Checksum is automatically verified during read
     let page_type = read_page.header().page_type;
-    assert_eq!(page_type, PageType::Free);
+    assert_eq!(page_type, PageType::FreeList);
 
     Ok(())
 }
@@ -169,7 +169,7 @@ fn test_page_io_corruption_detection() -> Result<(), Box<dyn std::error::Error>>
     {
         let mut file = File::create(temp_file.path())?;
         let mut page = Page::new();
-        page.header_mut().page_type = PageType::Leaf;
+        page.header_mut().page_type = PageType::BTreeLeaf;
         page.calculate_checksum()?;
         write_page_to_file(&mut file, 0, &page)?;
     }

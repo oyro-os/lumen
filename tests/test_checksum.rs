@@ -38,16 +38,16 @@ fn test_page_checksum_excludes_checksum_field() {
     let mut buffer1 = [0u8; PAGE_SIZE];
     let mut buffer2 = [0u8; PAGE_SIZE];
 
-    // Set different checksum values at bytes 20-23
-    buffer1[20] = 0xFF;
-    buffer1[21] = 0xFF;
-    buffer1[22] = 0xFF;
-    buffer1[23] = 0xFF;
+    // Set different checksum values at bytes 8-11 (new 16-byte header layout)
+    buffer1[8] = 0xFF;
+    buffer1[9] = 0xFF;
+    buffer1[10] = 0xFF;
+    buffer1[11] = 0xFF;
 
-    buffer2[20] = 0x00;
-    buffer2[21] = 0x00;
-    buffer2[22] = 0x00;
-    buffer2[23] = 0x00;
+    buffer2[8] = 0x00;
+    buffer2[9] = 0x00;
+    buffer2[10] = 0x00;
+    buffer2[11] = 0x00;
 
     // Checksums should be the same since we exclude the checksum field
     let checksum1 = calculate_page_checksum(&buffer1).unwrap();
@@ -65,7 +65,7 @@ fn test_page_checksum_invalid_size() {
 #[test]
 fn test_corruption_detection() {
     let mut page = Page::new();
-    page.header_mut().page_type = PageType::Leaf;
+    page.header_mut().page_type = PageType::BTreeLeaf;
     page.calculate_checksum().unwrap();
 
     // Verify checksum is correct
@@ -80,7 +80,7 @@ fn test_corruption_detection() {
 #[test]
 fn test_page_checksum_calculate_and_verify() {
     let mut page = Page::new();
-    page.header_mut().page_type = PageType::Leaf;
+    page.header_mut().page_type = PageType::BTreeLeaf;
     page.data_mut()[0] = 0x42;
 
     page.calculate_checksum().unwrap();

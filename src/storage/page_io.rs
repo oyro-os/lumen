@@ -249,7 +249,7 @@ mod tests {
         let mut file = File::create(temp_file.path())?;
 
         let mut page = Page::new();
-        page.header_mut().page_type = PageType::Leaf;
+        page.header_mut().page_type = PageType::BTreeLeaf;
         page.header_mut().page_id = 42;
         page.calculate_checksum()?;
 
@@ -260,7 +260,7 @@ mod tests {
 
         let page_type = read_page.header().page_type;
         let page_id = read_page.header().page_id;
-        assert_eq!(page_type, PageType::Leaf);
+        assert_eq!(page_type, PageType::BTreeLeaf);
         assert_eq!(page_id, 42);
 
         Ok(())
@@ -277,14 +277,14 @@ mod tests {
         }
 
         let mut page = Page::new();
-        page.header_mut().page_type = PageType::Internal;
+        page.header_mut().page_type = PageType::BTreeInternal;
         page.calculate_checksum()?;
 
         write_page_mmap(temp_file.path(), 0, &page)?;
         let read_page = read_page_mmap(temp_file.path(), 0)?;
 
         let page_type = read_page.header().page_type;
-        assert_eq!(page_type, PageType::Internal);
+        assert_eq!(page_type, PageType::BTreeInternal);
         // Checksum is automatically verified during read
 
         Ok(())

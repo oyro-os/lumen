@@ -128,17 +128,17 @@ mod tests {
 
         // Ensure we can safely cast to/from header
         page.header_mut().page_id = 12345;
-        page.header_mut().page_type = PageType::Leaf;
+        page.header_mut().page_type = PageType::BTreeLeaf;
 
         // Copy values to avoid unaligned access
         let page_id = page.header().page_id;
         let page_type = page.header().page_type;
 
         assert_eq!(page_id, 12345);
-        assert_eq!(page_type, PageType::Leaf);
+        assert_eq!(page_type, PageType::BTreeLeaf);
 
-        // Verify the raw bytes match
-        let raw_page_type = page.buffer[0];
-        assert_eq!(raw_page_type, PageType::Leaf as u8);
+        // Verify the raw bytes match - page_type is at offset 4 in new layout
+        let raw_page_type = page.buffer[4];
+        assert_eq!(raw_page_type, PageType::BTreeLeaf as u8);
     }
 }

@@ -5,8 +5,8 @@ use lumen::storage::page_constants::*;
 #[test]
 fn test_page_constants() {
     assert_eq!(PAGE_SIZE, 4096);
-    assert_eq!(PAGE_HEADER_SIZE, 32);
-    assert_eq!(PAGE_USABLE_SIZE, 4064);
+    assert_eq!(PAGE_HEADER_SIZE, 16);
+    assert_eq!(PAGE_USABLE_SIZE, 4080);
 }
 
 #[test]
