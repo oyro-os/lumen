@@ -1,5 +1,6 @@
 //! Page structure - a 4KB aligned byte array with typed header access
 
+use crate::common::error::Error;
 use crate::storage::page_constants::{PAGE_HEADER_SIZE, PAGE_SIZE, PAGE_USABLE_SIZE};
 use crate::storage::page_header::PageHeader;
 
@@ -68,6 +69,34 @@ impl Page {
     /// Usable data size in bytes
     pub fn usable_size(&self) -> usize {
         PAGE_USABLE_SIZE
+    }
+
+    /// Calculate and store page checksum
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the page size is invalid (should never happen with Page struct)
+    pub fn calculate_checksum(&mut self) -> Result<(), Error> {
+        let checksum = crate::storage::checksum::calculate_page_checksum(&self.buffer)?;
+        self.header_mut().checksum = checksum;
+        Ok(())
+    }
+
+    /// Verify page checksum
+    pub fn verify_checksum(&self) -> bool {
+        match crate::storage::checksum::calculate_page_checksum(&self.buffer) {
+            Ok(calculated) => {
+                // Copy checksum value to avoid unaligned access
+                let stored_checksum = self.header().checksum;
+                calculated == stored_checksum
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Check if page is corrupted
+    pub fn is_corrupted(&self) -> bool {
+        !self.verify_checksum()
     }
 }
 
