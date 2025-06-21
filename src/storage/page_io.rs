@@ -38,22 +38,39 @@ pub fn write_page_at_offset(file: &mut File, offset: u64, page: &Page) -> Result
 ///
 /// # Errors
 ///
-/// Returns an error if the file seek or read operation fails
+/// Returns an error if the file seek or read operation fails, or if checksum verification fails
 pub fn read_page_from_file(file: &mut File, page_id: u64) -> Result<Page, Error> {
     let offset = calculate_page_offset(page_id);
-    read_page_at_offset(file, offset)
+    let page = read_page_at_offset(file, offset)?;
+
+    // Verify checksum
+    if !page.verify_checksum() {
+        return Err(Error::corruption(format!(
+            "Checksum verification failed for page {page_id}"
+        )));
+    }
+
+    Ok(page)
 }
 
 /// Read a page from a file at the specified byte offset
 ///
 /// # Errors
 ///
-/// Returns an error if the file seek or read operation fails
+/// Returns an error if the file seek or read operation fails, or if checksum verification fails
 pub fn read_page_at_offset(file: &mut File, offset: u64) -> Result<Page, Error> {
     file.seek(SeekFrom::Start(offset))?;
 
     let mut page = Page::new();
     file.read_exact(page.raw_mut())?;
+
+    // Verify checksum
+    if !page.verify_checksum() {
+        let page_id = offset / PAGE_SIZE as u64;
+        return Err(Error::corruption(format!(
+            "Checksum verification failed for page at offset {offset} (page_id: {page_id})"
+        )));
+    }
 
     Ok(page)
 }
@@ -114,7 +131,7 @@ pub fn write_page_mmap<P: AsRef<Path>>(path: P, page_id: u64, page: &Page) -> Re
 ///
 /// # Errors
 ///
-/// Returns an error if file operations or memory mapping fails
+/// Returns an error if file operations or memory mapping fails, or if checksum verification fails
 pub fn read_page_mmap<P: AsRef<Path>>(path: P, page_id: u64) -> Result<Page, Error> {
     let file = File::open(path)?;
     let offset = calculate_page_offset(page_id);
@@ -127,6 +144,14 @@ pub fn read_page_mmap<P: AsRef<Path>>(path: P, page_id: u64) -> Result<Page, Err
 
         let mut page = Page::new();
         page.raw_mut().copy_from_slice(&mmap);
+
+        // Verify checksum
+        if !page.verify_checksum() {
+            return Err(Error::corruption(format!(
+                "Checksum verification failed for page {page_id}"
+            )));
+        }
+
         Ok(page)
     }
 }
@@ -180,7 +205,7 @@ pub fn write_page_direct<P: AsRef<Path>>(path: P, page_id: u64, page: &Page) -> 
 ///
 /// # Errors
 ///
-/// Returns an error if file operations fail
+/// Returns an error if file operations fail, or if checksum verification fails
 #[cfg(target_os = "linux")]
 pub fn read_page_direct<P: AsRef<Path>>(path: P, page_id: u64) -> Result<Page, Error> {
     use std::os::unix::fs::OpenOptionsExt;
@@ -197,7 +222,7 @@ pub fn read_page_direct<P: AsRef<Path>>(path: P, page_id: u64) -> Result<Page, E
 ///
 /// # Errors
 ///
-/// Returns an error if file operations fail
+/// Returns an error if file operations fail, or if checksum verification fails
 #[cfg(not(target_os = "linux"))]
 pub fn read_page_direct<P: AsRef<Path>>(path: P, page_id: u64) -> Result<Page, Error> {
     // Fallback to regular I/O on non-Linux platforms
@@ -260,7 +285,7 @@ mod tests {
 
         let page_type = read_page.header().page_type;
         assert_eq!(page_type, PageType::Internal);
-        assert!(read_page.verify_checksum());
+        // Checksum is automatically verified during read
 
         Ok(())
     }

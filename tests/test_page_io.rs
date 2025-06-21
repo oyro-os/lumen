@@ -24,7 +24,7 @@ fn test_page_write_and_read() -> Result<(), Box<dyn std::error::Error>> {
     let mut read_file = File::open(temp_file.path())?;
     let read_page = read_page_from_file(&mut read_file, 0)?;
 
-    assert!(read_page.verify_checksum());
+    // Checksum is automatically verified during read
     let page_type = read_page.header().page_type;
     let page_id = read_page.header().page_id;
     assert_eq!(page_type, PageType::Leaf);
@@ -54,7 +54,7 @@ fn test_page_io_multiple_pages() -> Result<(), Box<dyn std::error::Error>> {
     let mut read_file = File::open(temp_file.path())?;
     for i in 0..5 {
         let page = read_page_from_file(&mut read_file, i as u64)?;
-        assert!(page.verify_checksum());
+        // Checksum is automatically verified during read
         let page_id = page.header().page_id;
         assert_eq!(page_id, i);
         assert_eq!(page.data()[0], i as u8);
@@ -79,7 +79,7 @@ fn test_page_io_memory_mapped() -> Result<(), Box<dyn std::error::Error>> {
     write_page_mmap(temp_file.path(), 0, &write_page)?;
     let read_page = read_page_mmap(temp_file.path(), 0)?;
 
-    assert!(read_page.verify_checksum());
+    // Checksum is automatically verified during read
     let page_type = read_page.header().page_type;
     let page_id = read_page.header().page_id;
     assert_eq!(page_type, PageType::Internal);
@@ -108,7 +108,7 @@ fn test_page_io_offset_calculations() -> Result<(), Box<dyn std::error::Error>> 
     let mut read_file = File::open(temp_file.path())?;
     for &id in &page_ids {
         let page = read_page_by_id(&mut read_file, id as u64)?;
-        assert!(page.verify_checksum());
+        // Checksum is automatically verified during read
         let page_id = page.header().page_id;
         assert_eq!(page_id, id);
     }
@@ -130,7 +130,7 @@ fn test_page_io_direct() -> Result<(), Box<dyn std::error::Error>> {
     write_page_direct(temp_file.path(), 0, &write_page)?;
     let read_page = read_page_direct(temp_file.path(), 0)?;
 
-    assert!(read_page.verify_checksum());
+    // Checksum is automatically verified during read
     let page_id = read_page.header().page_id;
     assert_eq!(page_id, 77);
     assert_eq!(read_page.data()[100], 0xAB);
@@ -154,7 +154,7 @@ fn test_page_io_sync() -> Result<(), Box<dyn std::error::Error>> {
     let mut read_file = File::open(temp_file.path())?;
     let read_page = read_page_from_file(&mut read_file, 0)?;
 
-    assert!(read_page.verify_checksum());
+    // Checksum is automatically verified during read
     let page_type = read_page.header().page_type;
     assert_eq!(page_type, PageType::Free);
 
@@ -180,14 +180,15 @@ fn test_page_io_corruption_detection() -> Result<(), Box<dyn std::error::Error>>
         file.write_all(&[0xFF])?; // Corrupt first byte
     }
 
-    // Try to read - should detect corruption
+    // Try to read - should detect corruption and return error
     let mut file = File::open(temp_file.path())?;
     let result = read_page_from_file(&mut file, 0);
 
-    if let Ok(page) = result {
-        assert!(!page.verify_checksum());
+    // With automatic checksum verification, read should fail
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e.is_corruption());
     }
-    // Also acceptable if it fails to read
 
     Ok(())
 }
