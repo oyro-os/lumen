@@ -53,6 +53,7 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    needs: [test]  # Only run coverage after tests pass
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -71,36 +72,58 @@ jobs:
     - name: Generate coverage report
       run: |
         cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-        cargo llvm-cov --all-features --workspace --text --output-path coverage.txt
+        cargo llvm-cov --all-features --workspace --text > coverage.txt
     
     - name: Display coverage in summary
       run: |
         echo "## Code Coverage Report" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "```" >> $GITHUB_STEP_SUMMARY
+        
+        # Display the full coverage report
+        echo "### Detailed Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
         cat coverage.txt >> $GITHUB_STEP_SUMMARY
-        echo "```" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        # Extract coverage percentage for the badge
-        COVERAGE=$(cat coverage.txt | grep "TOTAL" | awk '{print $10}' | sed 's/%//')
-        echo "Total Coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+        # Extract coverage percentage - try multiple patterns
+        if grep -q "TOTAL" coverage.txt; then
+          # Format: "TOTAL    1234    567    89.12%"
+          COVERAGE=$(grep "TOTAL" coverage.txt | awk '{print $(NF)}' | sed 's/%//')
+        else
+          # Try to find overall coverage in different format
+          COVERAGE=$(grep -E "^\s*Lines\s*:" coverage.txt | head -1 | awk '{print $(NF)}' | sed 's/%//')
+        fi
         
-        # Color the badge based on coverage
-        if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+        # If we still don't have coverage, set a default
+        if [ -z "$COVERAGE" ]; then
+          COVERAGE="0.0"
+          echo "⚠️ **Warning**: Could not extract coverage percentage from report" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### Total Coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Color the badge based on coverage (using integer comparison)
+        COVERAGE_INT=$(echo "$COVERAGE" | cut -d. -f1)
+        if [ "$COVERAGE_INT" -ge 90 ]; then
           COLOR="brightgreen"
-        elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+        elif [ "$COVERAGE_INT" -ge 80 ]; then
           COLOR="green"
-        elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+        elif [ "$COVERAGE_INT" -ge 70 ]; then
           COLOR="yellow"
-        elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+        elif [ "$COVERAGE_INT" -ge 60 ]; then
           COLOR="orange"
         else
           COLOR="red"
         fi
         
-        echo "" >> $GITHUB_STEP_SUMMARY
         echo "![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR})" >> $GITHUB_STEP_SUMMARY
+        
+        # Also output to console for debugging
+        echo "Coverage extracted: ${COVERAGE}%"
     
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
